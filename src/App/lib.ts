@@ -1,34 +1,26 @@
+import uuid from 'uuid';
+import { IAppMessage, IAppMessageType, ILibOS } from './libOS';
+import { Util } from './Util';
+
+declare var OS: ILibOS;
+
+// @ts-ignore
 delete window.localStorage;
+// @ts-ignore
 delete window.sessionStorage;
 
-const hooks = {};
-const calls = {};
-const uuid4 = () => {
-    function hex(s, b) {
-        return s +
-            (b >>> 4).toString(16) +  // high nibble
-            (b & 0b1111).toString(16);   // low nibble
-    }
+const hooks: { [s: string]: Array<Function> } = {};
+const calls: { [s: string]: PromiseHolder } = {};
 
-    let r = crypto.getRandomValues(new Uint8Array(16));
+interface PromiseHolder {
+    resolve(data: any): void;
+    reject(error: any): void;
+}
 
-    r[6] = r[6] >>> 4 | 0b01000000; // Set type 4: 0100
-    r[8] = r[8] >>> 3 | 0b10000000; // Set variant: 100
-
-    return r.slice(0, 4).reduce(hex, '') +
-        r.slice(4, 6).reduce(hex, '-') +
-        r.slice(6, 8).reduce(hex, '-') +
-        r.slice(8, 10).reduce(hex, '-') +
-        r.slice(10, 16).reduce(hex, '-');
-};
-
-const response = msg => {
-    msg = msg.data;
-    const type = msg.type;
-    if (!(type instanceof Array)) {
-        return;
-    }
-    if (type[0] === "response") {
+const response: Function = (message: MessageEvent) => {
+    const msg: IAppMessage = message.data;
+    const type: IAppMessageType = msg.type;
+    if (type.service === "response" && msg.id) {
         if (calls.hasOwnProperty(msg.id)) {
             const prom = calls[msg.id];
             if (msg.hasOwnProperty("error")) {
@@ -43,108 +35,47 @@ const response = msg => {
     }
 }
 
-const msg = (type, data, id) => {
-    window.parent.postMessage({ type: type, data: data, id: id });
+const msg: Function = (typea: Array<string>, data?: any, id?: string) => {
+    const type: IAppMessageType = { service: typea[0], func: typea[1] };
+    window.parent.postMessage({ type: type, data: data, id: id }, location.origin);
 }
 
-const request = (type, data) => {
-    const id = uuid4();
+const request: Function = (type: Array<string>, data?: any): Promise<any> => {
+    const id = uuid.v4();
     return new Promise((resolve, reject) => {
         calls[id] = { resolve: resolve, reject: reject };
         msg(type, data, id);
     });
 }
 
+// @ts-ignore
 window.addEventListener("message", response);
 
-const hookEvent = (event, cb) => {
-    event = event.join(":");
+const hookEvent: Function = (type: IAppMessageType | Array<string>, cb: Function) => {
+    const event = (type instanceof Array) ? type.join(":") : type.service + ":" + type.func;
     if (!hooks.hasOwnProperty(event)) {
         hooks[event] = [];
     }
     hooks[event] = [...hooks[event], cb];
 }
 
-const fireHooks = (type, data, id) => {
-    type = type.join(":");
-    if (hooks.hasOwnProperty(type)) {
-        const wantsPromise = (typeof id === "string" && id.length > 0);
-        hooks[type].forEach(hook => {
-            const p = hook(data);
-            if (wantsPromise) {
-                if (p instanceof Promise) {
-                    p.then(data => msg(["response"], data, id));
-                } else {
-                    OS.Process.crash("Hook [" + type + "] did not return Promise");
-                }
-            }
-        });
-    }
-};
-
-const Util = {
-    loadArgs: (args, opts, map) => {
-        let remain = [];
-        for (let i = 0; i < args.length; i++) {
-            let arg = args[i];
-            if (arg.startsWith("--") && arg.length > 2) {
-                arg = arg.slice(2);
-                if ((i < args.length - 1) && opts.hasOwnProperty(arg)) {
-                    i++;
-                    opts[arg] = args[i];
-                }
-            } else if (arg.startsWith("-") && arg.length > 1 && arg !== "--") {
-                arg = arg.slice(1);
-                for (let j = 0; j < arg.length; j++) {
-                    const shrt = arg.charAt(j);
-                    if (map.hasOwnProperty(shrt)) {
-                        opts[map[shrt]] = !opts[map[shrt]];
-                    }
-                }
-            } else {
-                remain = [...remain, arg];
-            }
-        }
-        return remain;
-    },
-    bytesToHuman: (bytes, kibi, bits) => {
-        kibi = kibi === true;
-        bits = bits === true;
-        if (bits) bytes *= 8;
-        const step = kibi ? 1000 : 1024;
-        const set =
-            bits ?
-                (kibi ? ["b", "kb", "mb", "gb", "pb"] : ["b", "Kb", "Mb", "Gb", "Pb"])
-                :
-                (kibi ? ["B", "kB", "mB", "gB", "pB"] : ["B", "KB", "MB", "GB", "PB"])
-            ;
-        let o = 0;
-
-        while (bytes > step) {
-            bytes /= step;
-            o++;
-        }
-        return Math.round(bytes) + set[o];
-    }
-};
-
-const libJSPseudoOS = {
+const libJSPseudoOS: ILibOS = {
     FS: {
-        read: path => request(["FS", "read"], path),
-        write: (path, content) => request(["FS", "write"], { path: path, content: content }),
-        list: path => request(["FS", "list"], path),
-        mkdir: path => request(["FS", "mkdir"], path),
-        touch: path => request(["FS", "touch"], path),
-        del: path => request(["FS", "del"], path),
+        read: (path: string) => request(["FS", "read"], path),
+        write: (path: string, content: string) => request(["FS", "write"], { path: path, content: content }),
+        list: (path: string) => request(["FS", "list"], path),
+        mkdir: (path: string) => request(["FS", "mkdir"], path),
+        touch: (path: string) => request(["FS", "touch"], path),
+        del: (path: string) => request(["FS", "del"], path),
     },
     Std: {
-        out: data => msg(["Std", "out"], data),
-        inEvent: cb => hookEvent(["Std", "in"], cb),
+        out: (data: any) => msg(["Std", "out"], data),
+        inEvent: (cb: Function) => hookEvent({ service: "Std", func: "in" }, cb),
     },
     Out: {
-        print: msg => msg(["Out", "print"], { txt: msg, over: 0 }),
-        printLn: msg => OS.Out.print(msg + "\n"),
-        printOver: (msg, over) => msg(["Out", "printOver"], { txt: msg, over: over }),
+        print: data => msg(["Out", "print"], { txt: data, over: 0 }),
+        printLn: data => msg(["Out", "println"], { txt: data, over: 0 }),
+        printOver: (data, over) => msg(["Out", "printOver"], { txt: data, over: over }),
     },
     Process: {
         startEvent: cb => hookEvent(["Process", "start"], cb),
@@ -160,12 +91,32 @@ const libJSPseudoOS = {
     },
     Util: Util,
 };
-OS = libJSPseudoOS;
+
+// @ts-ignore
+window.OS = libJSPseudoOS;
+
+const fireHooks = (type: IAppMessageType, data?: any, id?: string) => {
+    if (typeof type !== "object") return;
+    const event: string = type.service + ":" + type.func;
+    if (hooks.hasOwnProperty(event)) {
+        const wantsPromise = (typeof id === "string" && id.length > 0);
+        hooks[event].forEach(hook => {
+            const p = hook(data);
+            if (wantsPromise) {
+                if (p instanceof Promise) {
+                    p.then(data => msg(["response"], data, id));
+                } else {
+                    OS.Process.crash(new Error("Hook [" + type + "] did not return Promise"));
+                }
+            }
+        });
+    }
+};
 
 
 document.addEventListener("DOMContentLoaded", function (event) {
     request(["boot"])
-        .then(data => {
-            fireHooks(["Process", "start"], data);
+        .then((data: Array<string>) => {
+            fireHooks({ service: "Process", func: "start" }, data);
         });
 });

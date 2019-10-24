@@ -1,6 +1,7 @@
 import FS from "./FileSystem";
 import Process from "../Struct/Process";
 import Identity from "../Struct/Identity";
+import { IAppMessage, IAppMessageType } from "../App/libOS";
 
 let libJS: string | null = null;
 
@@ -113,28 +114,24 @@ const OS: { [s: string]: { [s: string]: Function } } = {
     }
 };
 
-const systemCall: Function = (process: Process, type: Array<string>, data: any) => {
-    if (OS.hasOwnProperty(type[0])) {
-        if (OS[type[0]].hasOwnProperty(type[1])) {
-            return OS[type[0]][type[1]](process, data);
+const systemCall: Function = (process: Process, type: IAppMessageType, data: any) => {
+    if (OS.hasOwnProperty(type.service)) {
+        if (OS[type.service].hasOwnProperty(type.func)) {
+            return OS[type.service][type.func](process, data);
         }
     }
     console.log("Unhandled SysCall", process.id, type, data);
 };
 
-const appMessage: Function = (message: any): any => {
+const appMessage: Function = (message: MessageEvent): any => {
     const process: Process = getProcessFromSource(message.source);
-    if (processes === null) {
+    if (process === null) {
         return;
     }
     const msg: IAppMessage = message.data;
-    const type: Array<string> = msg.type;
-    if (!(type instanceof Array)) {
-        return;
-    }
+    const type: IAppMessageType = msg.type;
 
-    console.log("MSG FROM", process.id, type);
-    if (type[0] === "boot") {
+    if (type.service === "boot") {
         process.respond(process.params, msg.id);
         return;
     }
@@ -150,16 +147,11 @@ const appMessage: Function = (message: any): any => {
     }
 };
 
-interface IAppMessage {
-    type: Array<string>;
-    data?: any;
-    id?: string;
-}
-
 getLib()
     .then((data: string) => { libJS = data.replace(/sourceMappingURL/g, ""); startPending(); })
     .catch((err: Error) => console.log("FETCH LIB ERROR", err));
 
+// @ts-ignore
 window.addEventListener("message", appMessage);
 
 export default {

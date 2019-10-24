@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = {
     entry: {
-        os: './src/app.jts',
+        os: './src/app.ts',
         osLib: './src/App/lib.ts',
     },
     module: {
@@ -20,5 +20,10 @@ module.exports = {
     output: {
         filename: '[name].bundle.js',
         path: path.resolve(__dirname, 'dist'),
+    },
+    devtool: "source-map",
+    devServer: {
+        contentBase: path.resolve(__dirname, "dist"),
+        port: 9546,
     },
 };

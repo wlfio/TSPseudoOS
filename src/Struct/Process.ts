@@ -1,5 +1,6 @@
 import sha1 from "sha1";
 import Identity from "./Identity";
+import { IAppMessageType } from "../App/libOS";
 
 const generateBlobURL: Function = (data: string, type: string): string => {
     const blob: Blob = new Blob([data], { type: type });
@@ -88,11 +89,11 @@ export default class Process {
         return source === this.container.contentWindow;
     }
 
-    message(type: Array<string>, data: any, id?: string): boolean {
+    message(typea: Array<string>, data: any, id?: string): boolean {
         if (this.container !== null) {
-            console.log("MSG TO", this.id, type.join(":"), data);
             const window: Window | null = this.container.contentWindow;
             if (window === null) { return false; }
+            const type: IAppMessageType = { service: typea[0], func: typea[1] };
             window.postMessage({ type: type, data: data, id: id }, location.origin);
             return true;
         }

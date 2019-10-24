@@ -47,7 +47,7 @@ const bitOffsetUsr: number = 8;
 const bitOffsetAny: number = 0;
 const bitOffsetGrp: number = 4;
 
-const getPermBits: Function = (path: string): number => parseInt(localStorage.getItem(permPath(path)) || "", 10);
+const getPermBits: Function = (path: string): number => parseInt(localStorage.getItem(permPath(path)) || "", 16);
 
 // tslint:disable: no-bitwise
 
@@ -133,20 +133,20 @@ const isDir: Function = (path: string) => {
 
 const isDirCheck: Function = (path: string) => {
     if (!isDir(path)) {
-        throw ["Access Error", "Path is not directory", path].join(" : ");
+        throw new Error(["Access Error", "Path is not directory", path].join(" : "));
     }
 };
 
 const getFileDir: Function = (path: string): string => {
     const parts: Array<string> = path.split("/");
-    path = parts.slice(0, path.length - 1).join("/");
+    path = parts.slice(0, parts.length - 1).join("/");
     return path;
 };
 
 
 const hasPermissionCheck: Function = (path: string, action: number, identity: Identity) => {
     if (!hasPermission(path, action, identity)) {
-        throw ["Permissions Error", "Denied " + permStringPart(action), path].join(" : ");
+        throw new Error(["Permissions Error", "Denied " + permStringPart(action), path].join(" : "));
     }
 };
 const hasDirPermissionCheck: Function = (path: number, action: number, identity: number) =>
@@ -165,7 +165,7 @@ const dirAccessCheck: Function = (path: string, identity: Identity) => {
 
 
 const fileExists: Function = (path: string): boolean => {
-    return localStorage.hasOwnProperty(filePath(path)) !== null;
+    return localStorage.getItem(filePath(path)) !== null;
 };
 
 const fileDirExistsCheck: Function = (path: string): void => {
@@ -225,9 +225,9 @@ export const chmod: Function = (path: string, identity: Identity, hex: string) =
     if (typeof hex !== "string" || hex.length !== 3) {
         throw ["FS Error", "" + hex, "must be 3 digits long"];
     }
-    const grp: number = parseInt("0x" + hex.charAt(1), 10);
-    const usr: number = parseInt("0x" + hex.charAt(0), 10);
-    const any: number = parseInt("0x" + hex.charAt(2), 10);
+    const grp: number = parseInt("0x" + hex.charAt(1), 16);
+    const usr: number = parseInt("0x" + hex.charAt(0), 16);
+    const any: number = parseInt("0x" + hex.charAt(2), 16);
     if (identity.priveledged || getPathUsr(path) === identity.user) {
         return doChmod(path, usr, grp, any);
     }
@@ -263,7 +263,7 @@ export const mkdir: Function = (path: string, identity: number) => {
         hasDirPermissionCheck(path, permBitWrit, identity);
         return Promise.resolve(doMkdir(path, identity));
     } catch (e) {
-        return Promise.reject([...e]);
+        return Promise.reject(e);
     }
 };
 
@@ -289,7 +289,7 @@ export const write: Function = (path: string, content: string, identity: Identit
         }
         return Promise.resolve(doWrite(path, content, exists, identity));
     } catch (e) {
-        return Promise.reject([...e]);
+        return Promise.reject(e);
     }
 };
 export const touch: Function = (path: string, identity: Identity): Promise<Array<string>> => write(path, "", identity);
@@ -303,7 +303,7 @@ export const read: Function = (path: String, identity: Identity): Promise<string
         hasPermissionCheck(path, permBitRead, identity);
         return Promise.resolve(doRead(path));
     } catch (e) {
-        return Promise.reject([...e]);
+        return Promise.reject(e);
     }
 };
 
@@ -322,7 +322,7 @@ export const del: Function = (path: string, identity: Identity): Promise<string>
         fileExistsCheck(path);
         return Promise.resolve(doDel(path));
     } catch (e) {
-        return Promise.reject([...e]);
+        return Promise.reject(e);
     }
 };
 
@@ -401,9 +401,9 @@ export const getExec: Function = (exec: string, identity: Identity): Promise<str
                 }
             }
         }
-        throw ["FS Error", exec, "Not found"];
+        throw new Error(["FS Error", exec, "Not found"].join(" : "));
     } catch (e) {
-        return Promise.reject([...e]);
+        return Promise.reject(e);
     }
 };
 
