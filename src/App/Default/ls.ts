@@ -77,14 +77,11 @@ export const ls: Function = (): void => {
     };
 
     const start: Function = (data: Array<string>): void => {
-        console.log("Start LS", data);
         data = OS.Util.loadArgs(data, opts, argMap);
         count = data.length;
         data.map(s => list(s));
 
     };
-
-    console.log("LS CODE LOADED");
 
     OS.Process.startEvent(start);
 };

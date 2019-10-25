@@ -35,7 +35,6 @@ const processDisplayData: Function = (data: any): string => {
 }
 
 export const output: Function = (data: any, over?: number, newLine?: boolean) => {
-    console.log("OUTPUT", data, over, newLine);
     newLine = newLine === true;
     let text: string = "";
     if (typeof data !== "string") {
@@ -53,7 +52,6 @@ export const prompt: Function = (show: boolean) => {
 const writeToDisplay: Function = (text: string, over?: number) => {
     over = over || 0;
     if (display === null) {
-        console.log("Queueing for display", text, over);
         queuedItems.push({ text, over });
     } else {
         display.textContent = display.textContent + text;
