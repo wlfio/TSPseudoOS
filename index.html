@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>wlf.io</title>
-    <script src="os.bundle.js"></script>
+    <script defer src="os.bundle.js"></script>
     <style>
         iframe {
             border: 1px;
@@ -18,14 +18,15 @@
             max-height: 50vh;
             border: 1px solid black;
             overflow-y: auto;
+            color: white;
+            background-color: black;
         }
     </style>
 </head>
 
 <body>
-    <input id="pid-to-use" />
-    <button id="kill">Kill</button>
-    <button id="debug">Debug</button>
+    <input id="input" />
+    <button id="run">run</button>
     <pre id="output"></pre>
     <div id="processes"></div>
 </body>
