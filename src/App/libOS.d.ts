@@ -28,9 +28,8 @@ interface ILibStd {
 }
 
 interface ILibOut {
-    print(data: string | Array<String> | Array<Array<string>>): void;
-    printLn(data: string | Array<String> | Array<Array<string>>): void;
-    printOver(data: string | Array<String> | Array<Array<string>>, over: number): void;
+    print(data: string | String[] | Array<string[]>, over?: number): void;
+    printLn(data: string | String[] | Array<string[]>, over?: number): void;
 }
 
 interface ILibProcess {
@@ -59,4 +58,10 @@ interface ILibFS {
     mkdir(path: string): Promise<string>;
     touch(path: string): Promise<Array<string>>;
     del(path: string): Promise<string>;
+}
+
+interface IDisplayItem {
+    data: any;
+    over?: number;
+    newLine?: boolean;
 }

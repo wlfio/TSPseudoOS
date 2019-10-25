@@ -21,12 +21,22 @@ export const ls: Function = (): void => {
     };
 
     const longOutputEntry: Function = (entry: IFSListEntry, columns: Array<string>): Array<any> => {
-        return Object.entries(entry).filter(e => columns.includes(e[0])).map(e => e[1]);
+        const out = {
+            perms: entry.perms,
+            user: entry.user,
+            group: entry.group,
+            size: entry.size,
+            name: entry.name,
+        };
+        if (opts["no-group"]) {
+            delete out["group"];
+        }
+        return Object.values(out);
     };
 
     const longOutput: Function = (data: Array<IFSListEntry>) => {
         let arr: Array<Array<string>> = [
-            ["perms", "user", opts["no-group"] ? "" : "group", "size", "name"].filter(c => c.length > 0)
+            ["perms\t", "user", opts["no-group"] ? "" : "group", "size", "name"].filter(c => c.length > 0)
         ];
         data.map(d => longOutputEntry(d, arr[0])).map(e => arr.push(e));
         return arr;
@@ -67,11 +77,14 @@ export const ls: Function = (): void => {
     };
 
     const start: Function = (data: Array<string>): void => {
+        console.log("Start LS", data);
         data = OS.Util.loadArgs(data, opts, argMap);
         count = data.length;
         data.map(s => list(s));
 
     };
+
+    console.log("LS CODE LOADED");
 
     OS.Process.startEvent(start);
 };

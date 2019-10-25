@@ -3,6 +3,7 @@ import Identity from "./Struct/Identity";
 import Processes from "./Services/Processes";
 import { ILibOS } from "./App/libOS";
 
+
 import { DefaultApps } from "./App/Default/index";
 
 declare const OS: ILibOS;
@@ -33,10 +34,24 @@ Object.entries(DefaultApps).map((app: Array<any>) => {
     FS.chmod("bin/" + app[0], rootIdent, "755");
 });
 
-// 
+const clickRun: Function = (btn: HTMLButtonElement, ev: MouseEvent) => {
+    console.log("BTN CLICK");
+    const input: HTMLInputElement | null = document.querySelector("input#input");
+    console.log(input);
+    if (input !== null) {
+        const data = input.value.split(" ").map(s => s.trim());
+        console.log(input.value);
+    }
+}
 
-
-
-Processes.start("ls", ["-lh", "/home/root"], rootIdent)
-    .then((data: any) => console.log("App Started", data))
-    .catch((error: Error) => console.log("App Failed", error));
+document.addEventListener("DOMContentLoaded", () => {
+    Processes.start("ls", ["-lh", "/home/root"], rootIdent)
+        .then((data: any) => console.log("App Started", data))
+        .catch((error: Error) => console.log("App Failed", error));
+    const runBtn: HTMLButtonElement | null = document.querySelector("button#run");
+    console.log(runBtn);
+    if (runBtn !== null) {
+        // @ts-ignore
+        runBtn.addEventListener("click", clickRun);
+    }
+})

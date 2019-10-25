@@ -1,7 +1,8 @@
 import FS from "./FileSystem";
 import Process from "../Struct/Process";
 import Identity from "../Struct/Identity";
-import { IAppMessage, IAppMessageType } from "../App/libOS";
+import { IAppMessage, IAppMessageType, IDisplayItem } from "../App/libOS";
+import Display from './Display';
 
 let libJS: string | null = null;
 
@@ -40,6 +41,20 @@ interface IPendingApp {
     reject: Function;
 }
 
+const createContainer: Function = (pid: number): Promise<HTMLIFrameElement> => {
+    const procs: HTMLDivElement | null = document.querySelector("div#processes");
+    if (procs instanceof HTMLDivElement) {
+        const container: HTMLIFrameElement = document.createElement("iframe");
+        container.sandbox.add("allow-scripts");
+        container.sandbox.add("allow-same-origin");
+        container.id = "pid-" + pid;
+        procs.append(container);
+        return Promise.resolve(container);
+    } else {
+        return Promise.reject(new Error("Process Error : spawn : Cannot find processes container div"));
+    }
+}
+
 const startProcess: Function = (exec: string, params: Array<string>, identity: Identity, parent?: any) => {
     if (libJS === null) {
         return pendStart(exec, params, identity, parent);
@@ -61,8 +76,13 @@ const startProcess: Function = (exec: string, params: Array<string>, identity: I
 
                     processes[pids] = process;
 
-                    process.spawn();
-                    resolve([process.id, process.exec, process.params]);
+                    createContainer(process.id)
+                        .then((container: HTMLIFrameElement) => {
+                            process.spawn(container);
+                            resolve([process.id, process.exec, process.params]);
+                        }).catch((e: Error) => {
+                            reject(e);
+                        })
                 })
                 .catch((e: Error) => reject(e));
         });
@@ -106,11 +126,11 @@ const OS: { [s: string]: { [s: string]: Function } } = {
         end: (process: Process) => process.kill(),
     },
     Std: {
-        out: (process: Process, data: any) => process.hasParent() ? process.intoParent(data) : OS.Out.printLn(process, data),
+        out: (process: Process, data: any) => process.hasParent() ? process.intoParent(data) : OS.Out.print(process, { data: data, over: 0 }),
     },
     Out: {
-        print: (process: Process, data: any) => console.log("print", data),
-        printLn: (process: Process, data: any) => console.log("printLn", data),
+        print: (process: Process, item: IDisplayItem) => Display.output(item.data, item.over, false),
+        printLn: (process: Process, item: IDisplayItem) => { console.log(item); return Display.output(item.data, item.over, true) },
     }
 };
 

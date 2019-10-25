@@ -68,20 +68,9 @@ export default class Process {
         return this;
     }
 
-    spawn(): boolean {
-        const procs: HTMLDivElement | null = document.querySelector("div#processes");
-        if (procs instanceof HTMLDivElement && !this.dead) {
-            const container: HTMLIFrameElement = document.createElement("iframe");
-            container.sandbox.add("allow-scripts");
-            container.sandbox.add("allow-same-origin");
-            container.id = "pid-" + this.id;
-            container.src = getAppHtml(this.bin);
-            procs.append(container);
-            this.container = container;
-            return true;
-        } else {
-            return false;
-        }
+    spawn(container: HTMLIFrameElement): void {
+        container.src = getAppHtml(this.bin);
+        this.container = container;
     }
 
     isSource(source: Window): boolean {

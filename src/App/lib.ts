@@ -73,9 +73,8 @@ const libJSPseudoOS: ILibOS = {
         inEvent: (cb: Function) => hookEvent({ service: "Std", func: "in" }, cb),
     },
     Out: {
-        print: data => msg(["Out", "print"], { txt: data, over: 0 }),
-        printLn: data => msg(["Out", "println"], { txt: data, over: 0 }),
-        printOver: (data, over) => msg(["Out", "printOver"], { txt: data, over: over }),
+        print: (data, over?: number) => msg(["Out", "print"], { txt: data, over: over || 0 }),
+        printLn: (data, over?: number) => msg(["Out", "println"], { txt: data, over: over || 0 }),
     },
     Process: {
         startEvent: cb => hookEvent(["Process", "start"], cb),
