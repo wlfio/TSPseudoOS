@@ -1,20 +1,32 @@
 import { ILibUtil } from "./libOS";
 
 export const Util: ILibUtil = {
-    loadArgs: (args, opts, map) => {
-        let remain: Array<string> = [];
-        for (let i = 0; i < args.length; i++) {
-            let arg = args[i];
+    loadArgs: (args, opts, map): Promise<string[]> => {
+        let remain: string[] = [];
+        for (let i: number = 0; i < args.length; i++) {
+            let arg: any = args[i];
             if (arg.startsWith("--") && arg.length > 2) {
                 arg = arg.slice(2);
-                if ((i < args.length - 1) && opts.hasOwnProperty(arg)) {
-                    i++;
-                    opts[arg] = args[i];
+                if (opts.hasOwnProperty(arg)) {
+                    if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
+                        i++;
+                        opts[arg] = args[i];
+                    } else {
+                        opts[arg] = !opts[arg];
+                    }
+                } else {
+                    return Promise.reject(
+                        new Error(
+                            ["Load Args Error",
+                                "unrecognized option '--" + arg + "'\nTry '--help' for more information.",
+                                JSON.stringify(args)
+                            ].join(" : "))
+                    );
                 }
             } else if (arg.startsWith("-") && arg.length > 1 && arg !== "--") {
                 arg = arg.slice(1);
                 for (let j = 0; j < arg.length; j++) {
-                    const shrt = arg.charAt(j);
+                    const shrt: string = arg.charAt(j);
                     if (map.hasOwnProperty(shrt)) {
                         opts[map[shrt]] = !opts[map[shrt]];
                     }
@@ -23,7 +35,7 @@ export const Util: ILibUtil = {
                 remain = [...remain, arg];
             }
         }
-        return remain;
+        return Promise.resolve(remain);
     },
     bytesToHuman: (bytes, kibi, bits) => {
         kibi = kibi === true;

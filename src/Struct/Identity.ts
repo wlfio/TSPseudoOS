@@ -1,8 +1,16 @@
-export default class Identity {
+export interface IIdentity {
     user: string;
-    groups: Array<string>;
+    groups: string[];
     workingDir: string;
-    path: Array<string>;
+    path: string[];
+    priveledged: boolean;
+}
+
+export default class Identity implements IIdentity {
+    user: string;
+    groups: string[];
+    workingDir: string;
+    path: string[];
     priveledged: boolean;
 
     constructor(user: string, groups: Array<String>, workingDir: string) {

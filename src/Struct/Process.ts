@@ -1,6 +1,6 @@
 import sha1 from "sha1";
 import Identity from "./Identity";
-import { IAppMessageType } from "../App/libOS";
+import { IAppMessageType, IAppMessage } from "../App/libOS";
 
 const generateBlobURL: Function = (data: string, type: string): string => {
     const blob: Blob = new Blob([data], { type: type });
@@ -24,31 +24,44 @@ const getBlobURL: Function = (data: string, type: string): string => {
 
 const getJSBlobURL: Function = (data: string) => getBlobURL(data, "text/javascript");
 
-const getAppHtml: Function = (data: Array<string>) => {
+const getAppHtml: Function = (data: string[], params: {}) => {
     if (!(data instanceof Array)) { data = [data]; }
     let html: string = "<html><head><meta charset = \"UTF-8\">";
+    html += ["<scrip", "t>window.START_PARAMS = ", JSON.stringify(params), ";</scr", "ipt>"].join("");
     data.forEach(d => html += ["<script src=\"", d, "\"></scr", "ipt>"].join(""));
     html += "</head><body></body></html>";
     return getBlobURL(html, "text/html");
 };
 
-
+const getIdentity: Function = (ident: Identity | null, parent: any): Identity => {
+    if (!(ident instanceof Identity)) {
+        if (parent.hasOwnProperty("identity")) {
+            ident = parent.identity;
+        }
+    }
+    if (ident instanceof Identity) {
+        return ident.clone();
+    } else {
+        throw ["Process Start Failed", "Missing Identity", "None passed or on parent"];
+    }
+};
 
 export default class Process {
     id: number;
     exec: string;
-    params: Array<string>;
+    params: string[];
     identity: Identity;
     parent: any;
     container: HTMLIFrameElement | null;
-    bin: Array<string>;
+    bin: string[];
     dead: boolean;
 
-    constructor(id: number, exec: string, params: Array<string>, identity: Identity, parent: any) {
+    constructor(id: number, exec: string, params: string[], identity: Identity | null, parent: any) {
+
         this.id = id;
         this.exec = exec;
         this.params = params;
-        this.identity = identity.clone();
+        this.identity = getIdentity(identity, parent);
         this.parent = parent || null;
         this.container = null;
         this.bin = [];
@@ -60,7 +73,16 @@ export default class Process {
     }
 
     intoParent(data: any): void {
-        console.log("pump into parent", data);
+        if (this.parent instanceof Process) {
+            this.parent.stdIn(this.id, data);
+        }
+    }
+
+    set(prop: string, value: any): void {
+        switch (prop) {
+            case "workingDir":
+                this.identity.workingDir = value;
+        }
     }
 
     loadBin(bin: string): Process {
@@ -69,7 +91,7 @@ export default class Process {
     }
 
     spawn(container: HTMLIFrameElement): void {
-        container.src = getAppHtml(this.bin);
+        container.src = getAppHtml(this.bin, this.params);
         this.container = container;
     }
 
@@ -78,19 +100,31 @@ export default class Process {
         return source === this.container.contentWindow;
     }
 
-    message(typea: Array<string>, data: any, id?: string): boolean {
+    stdIn(source: number | string, data: any): void {
+        this.message(["Std", "in"], { from: source, data });
+    }
+
+    message(typea: string[], data: any, id?: string, error?: any): boolean {
         if (this.container !== null) {
             const window: Window | null = this.container.contentWindow;
             if (window === null) { return false; }
             const type: IAppMessageType = { service: typea[0], func: typea[1] };
-            window.postMessage({ type: type, data: data, id: id }, location.origin);
+            const msg: IAppMessage = { type: type, data: data, id: id };
+            if (error instanceof Error) {
+                console.log("Error to process", this, error);
+                error = ["ERROR", ...error.message.split(" : ")];
+            }
+            if (typeof error !== "undefined") {
+                msg.error = error;
+            }
+            window.postMessage(msg, location.origin);
             return true;
         }
         return false;
     }
 
-    respond(data: any, id?: string): void {
-        this.message(["response"], data, id);
+    respond(data: any, id?: string, error?: any): void {
+        this.message(["response"], data, id, error);
     }
 
     kill(): void {

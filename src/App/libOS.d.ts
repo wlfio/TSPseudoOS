@@ -2,6 +2,11 @@ import { IFSListEntry } from "../Services/FileSystem";
 
 declare const OS: ILibOS;
 
+export interface IStdInMsg {
+    from: string,
+    data: any,
+}
+
 export interface ILibOS {
     FS: ILibFS;
     Std: ILibStd;
@@ -19,7 +24,7 @@ export interface IAppMessage {
     type: IAppMessageType;
     data?: any;
     id?: string;
-    error?: Error;
+    error?: any;
 }
 
 interface ILibStd {
@@ -33,30 +38,30 @@ interface ILibOut {
 }
 
 interface ILibProcess {
-    //startEvent(callback: (data: Array<string>) => void): void;
+    //startEvent(callback: (data: string[]) => void): void;
     startEvent(callback: Function): void;
     msgEvent(callback: Function): void;
     msg(pid: number, msg: any): Promise<any>;
     end(): void;
-    crash(error: Error): void;
+    crash(error: any): void;
     ready(): void;
-    start(exec: string, params: Array<string>): Promise<any>;
+    start(exec: string, params: string[]): Promise<any>;
     kill(pid: number): Promise<any>;
     list(): Promise<any>;
     self(): Promise<any>;
 }
 
 interface ILibUtil {
-    loadArgs(args: Array<string>, options: { [s: string]: any }, map: { [s: string]: string }): Array<string>;
+    loadArgs(args: string[], options: { [s: string]: any }, map: { [s: string]: string }): Promise<string[]>;
     bytesToHuman(bytes: number, kibi?: boolean, bits?: boolean): string;
 }
 
 interface ILibFS {
     read(path: string): Promise<string>;
-    write(path: string, content: string): Promise<Array<string>>;
+    write(path: string, content: string): Promise<string[]>;
     list(path: string): Promise<Array<IFSListEntry>>;
     mkdir(path: string): Promise<string>;
-    touch(path: string): Promise<Array<string>>;
+    touch(path: string): Promise<string[]>;
     del(path: string): Promise<string>;
 }
 

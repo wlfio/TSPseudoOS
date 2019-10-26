@@ -1,8 +1,11 @@
 import { IFSListEntry } from "../../Services/FileSystem";
 import { ILibOS } from "../libOS";
+import { ILibCMD } from "../../Services/Cmd";
+
+declare var CMD: ILibCMD;
 declare var OS: ILibOS;
 
-export const ls: Function = (): void => {
+const ls: Function = (): void => {
     const opts: { all: boolean; human: boolean; long: boolean; "no-group": boolean } = {
         all: false,
         human: false,
@@ -20,29 +23,39 @@ export const ls: Function = (): void => {
         G: "no-group",
     };
 
-    const longOutputEntry: Function = (entry: IFSListEntry, columns: Array<string>): Array<any> => {
-        const out = {
+    const colourFileName: Function = (entry: IFSListEntry): string => {
+        let fore: string = CMD.Colours.white;
+        let back: string = CMD.Colours.black;
+        if (!entry.file) {
+            fore = CMD.Colours.blue;
+        }
+        return CMD.Colourize(entry.name, fore, back);
+    };
+
+    const longOutputEntry: Function = (entry: IFSListEntry): any[] => {
+        const out: { [s: string]: any } = {
             perms: entry.perms,
             user: entry.user,
             group: entry.group,
             size: entry.size,
-            name: entry.name,
+            name: colourFileName(entry),
         };
         if (opts["no-group"]) {
-            delete out["group"];
+            delete out.group;
         }
         return Object.values(out);
     };
 
-    const longOutput: Function = (data: Array<IFSListEntry>) => {
-        let arr: Array<Array<string>> = [
+    const longOutput: Function = (path: string, data: Array<IFSListEntry>) => {
+        let arr: Array<string[] | string> = [
+            path,
             ["perms\t", "user", opts["no-group"] ? "" : "group", "size", "name"].filter(c => c.length > 0)
         ];
-        data.map(d => longOutputEntry(d, arr[0])).map(e => arr.push(e));
+        data.map(d => longOutputEntry(d)).map(e => arr.push(e));
         return arr;
     };
 
-    const shortOutput: Function = (data: Array<IFSListEntry>): Array<string> => data.map(e => e.name);
+    const shortOutput: Function = (data: Array<IFSListEntry>): string[] => data.map(e => colourFileName(e));
 
     const output: Function = (path: string, data: Array<IFSListEntry>) => {
         if (!opts.all) {
@@ -54,8 +67,8 @@ export const ls: Function = (): void => {
             //     d.size = OS.Util.bytesToHuman(d.size);
             // });
         }
-        let result: Array<string> | Array<Array<string>>;
-        result = opts.long ? longOutput(data) : shortOutput(data);
+        let result: string[] | Array<string[]>;
+        result = opts.long ? longOutput(path, data) : shortOutput(data);
 
         OS.Std.out(result);
 
@@ -65,23 +78,31 @@ export const ls: Function = (): void => {
         }
     };
 
-    const error: Function = (path: string, e: Error) => {
-        console.log(e);
-        OS.Process.crash(new Error(path + "\n" + e.toString()));
+    const error: Function = (e: any) => {
+        OS.Process.crash(e);
     };
 
     const list: Function = (path: string) => {
         OS.FS.list(path)
             .then((data: Array<Object>) => output(path, data))
-            .catch((e: Error) => error(path, e));
+            .catch((e: any) => error(e));
     };
 
-    const start: Function = (data: Array<string>): void => {
-        data = OS.Util.loadArgs(data, opts, argMap);
-        count = data.length;
-        data.map(s => list(s));
+    const start: Function = (data: string[]): void => {
+        OS.Util.loadArgs(data, opts, argMap)
+            .then((data) => {
+                count = data.length;
+                if (data.length < 1) {
+                    data = [""];
+                    count = 1;
+                }
+                data.map(s => list(s));
+            })
+            .catch(e => error(e));
 
     };
 
     OS.Process.startEvent(start);
 };
+
+export default ls;
