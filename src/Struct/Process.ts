@@ -1,5 +1,5 @@
 import sha1 from "sha1";
-import Identity from "./Identity";
+import Identity, { IIdentityContainer } from "./Identity";
 import { IAppMessageType, IAppMessage } from "../App/libOS";
 
 const generateBlobURL: Function = (data: string, type: string): string => {
@@ -48,7 +48,7 @@ const getIdentity: Function = (ident: Identity | null, parent: any): Identity =>
     }
 };
 
-export default class Process {
+export default class Process implements IIdentityContainer {
     id: number;
     exec: string;
     params: string[];
@@ -70,6 +70,10 @@ export default class Process {
         this.container = null;
         this.bin = [];
         this.dead = false;
+    }
+
+    getIdentity(): Identity {
+        return this.identity.getIdentity();
     }
 
     hasParent(): boolean {
@@ -95,7 +99,7 @@ export default class Process {
     }
 
     spawn(container: HTMLIFrameElement): void {
-        this.paramsUrl = getJSBlobURL("window.START_PARAMS = " + JSON.stringify(this.params) + ";");
+        this.paramsUrl = getJSBlobURL("window.PID = " + this.id + ";window.START_PARAMS = " + JSON.stringify(this.params) + ";");
         this.htmlUrl = getAppHtml([this.paramsUrl, ...this.bin]);
         container.src = this.htmlUrl;
         this.container = container;

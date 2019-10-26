@@ -61,9 +61,10 @@ interface ILibFS {
     read(path: string): Promise<string>;
     write(path: string, content: string): Promise<string[]>;
     list(path: string): Promise<Array<IFSListEntry>>;
-    mkdir(path: string): Promise<string>;
+    mkdir(path: string): Promise<boolean>;
     touch(path: string): Promise<string[]>;
     del(path: string): Promise<string>;
+    resolve(paths:string[]): Promise<string[]>;
 }
 
 interface IDisplayItem {

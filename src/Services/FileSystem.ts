@@ -1,4 +1,4 @@
-import Identity from "../Struct/Identity";
+import { IIdentity, IIdentityContainer } from "../Struct/Identity";
 
 const dirString: string = "___dir___";
 
@@ -69,7 +69,7 @@ const getPermBitsUsr: Function = (path: string): number => getPermBits(path) >> 
 const getPermBitsGrp: Function = (path: string): number => getPermBits(path) >> bitOffsetGrp;
 const getPermBitsAny: Function = (path: string): number => getPermBits(path) >> bitOffsetAny;
 
-const userHasPermission: Function = (path: string, action: number, identity: Identity) => {
+const userHasPermission: Function = (path: string, action: number, identity: IIdentity) => {
     const user: string = identity.user;
     if (identity.priveledged) {
         if (action & permBitExec) {
@@ -89,7 +89,7 @@ const userHasPermission: Function = (path: string, action: number, identity: Ide
     return false;
 };
 
-const groupHasPermission: Function = (path: string, action: number, identity: Identity) => {
+const groupHasPermission: Function = (path: string, action: number, identity: IIdentity) => {
     const groups: string[] = identity.groups;
     if (groups.includes(getPathGrp(path)) && getPermBitsGrp(path) & action) {
         return true;
@@ -144,7 +144,7 @@ const getFileDir: Function = (path: string): string => {
 };
 
 
-const hasPermissionCheck: Function = (path: string, action: number, identity: Identity) => {
+const hasPermissionCheck: Function = (path: string, action: number, identity: IIdentity) => {
     if (!hasPermission(path, action, identity)) {
         throw new Error(["Permissions Error", "Denied " + permStringPart(action), path].join(" : "));
     }
@@ -152,7 +152,7 @@ const hasPermissionCheck: Function = (path: string, action: number, identity: Id
 const hasDirPermissionCheck: Function = (path: number, action: number, identity: number) =>
     hasPermissionCheck(getFileDir(path), action, identity);
 
-const dirAccessCheck: Function = (path: string, identity: Identity) => {
+const dirAccessCheck: Function = (path: string, identity: IIdentity) => {
     path = getFileDir(path);
     const parts: string[] = path.split("/");
     for (let i: number = 2; i <= parts.length; i++) {
@@ -202,13 +202,17 @@ const resolveWorkingPath: Function = (path: string, working: string): string => 
     return path;
 };
 
-const resolvePath: Function = (path: string, identity: Identity): string => {
+const resolvePath: Function = (path: string, identity: IIdentity): string => {
     path = resolveWorkingPath(path, identity.workingDir);
     dirAccessCheck(path, identity);
     return path;
 };
 
-const resolveExecPaths: Function = (exec: string, identity: Identity): string[] =>
+export const resolveWorkingPaths: Function = (paths: string[], identitC: IIdentityContainer): Promise<string[]> => {
+    return Promise.resolve(paths.map(p => resolvePath(p, identitC.getIdentity())));
+}
+
+const resolveExecPaths: Function = (exec: string, identity: IIdentity): string[] =>
     [resolvePath(exec, identity), ...identity.path.map(p => resolveWorkingPath(exec, p))];
 
 
@@ -225,26 +229,32 @@ const doChmod: Function = (path: string, usr: number, grp: number, any: number) 
 };
 // tslint:enable:no-bitwise
 
-export const chmod: Function = (path: string, identity: Identity, hex: string) => {
-    path = resolvePath(path, identity);
-    fileExistsCheck(path);
-    if (typeof hex !== "string" || hex.length !== 3) {
-        throw new Error(["FS Error", "" + hex, "must be 3 digits long"].join(" : "));
+export const chmod: Function = (path: string, identitC: IIdentityContainer, hex: string) => {
+    try {
+        const identity: IIdentity = identitC.getIdentity();
+        path = resolvePath(path, identity);
+        fileExistsCheck(path);
+        if (typeof hex !== "string" || hex.length !== 3) {
+            throw new Error(["FS Error", "" + hex, "must be 3 digits long"].join(" : "));
+        }
+        const grp: number = parseInt("0x" + hex.charAt(1), 16);
+        const usr: number = parseInt("0x" + hex.charAt(0), 16);
+        const any: number = parseInt("0x" + hex.charAt(2), 16);
+        if (identity.priveledged || getPathUsr(path) === identity.user) {
+            return Promise.resolve(doChmod(path, usr, grp, any));
+        }
+        throw new Error(["FS ERROR", path, "Permissions can only be changed by root or owner"].join(" : "));
+    } catch (e) {
+        return Promise.reject(e);
     }
-    const grp: number = parseInt("0x" + hex.charAt(1), 16);
-    const usr: number = parseInt("0x" + hex.charAt(0), 16);
-    const any: number = parseInt("0x" + hex.charAt(2), 16);
-    if (identity.priveledged || getPathUsr(path) === identity.user) {
-        return doChmod(path, usr, grp, any);
-    }
-    throw new Error(["FS ERROR", path, "Permissions can only be changed by root or owner"].join(" : "));
 };
 
-const doChown: Function = (path: string, identity: Identity, user?: string, group?: string) => {
+const doChown: Function = (path: string, identity: IIdentity, user?: string, group?: string) => {
     localStorage.setItem(owndPath(path), [user || identity.user, group || identity.user].join(":"));
 };
 
-export const chown: Function = (path: string, identity: Identity, user?: string, group?: string) => {
+export const chown: Function = (path: string, identitC: IIdentityContainer, user?: string, group?: string) => {
+    const identity:IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         dirExistsCheck(path);
@@ -258,15 +268,19 @@ export const chown: Function = (path: string, identity: Identity, user?: string,
 };
 
 
-const doMkdir: Function = (path: string, identity: Identity): string => {
+const doMkdir: Function = (path: string, identity: IIdentity): boolean => {
+    if (isDir(path)) {
+        return false;
+    }
     localStorage.setItem(dirPath(path), dirString);
     // tslint:disable-next-line:no-bitwise
     doChmod(path, permBitRead | permBitWrit | permBitExec, permBitRead | permBitExec, permBitRead | permBitExec);
     doChown(path, identity);
-    return path;
+    return true;
 };
 
-export const mkdir: Function = (path: string, identity: number) => {
+export const mkdir: Function = (path: string, identitC: IIdentityContainer) => {
+    const identity:IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         fileDirExistsCheck(path);
@@ -278,7 +292,7 @@ export const mkdir: Function = (path: string, identity: number) => {
     }
 };
 
-const doWrite: Function = (path: string, content: string, exists: boolean, identity: Identity) => {
+const doWrite: Function = (path: string, content: string, exists: boolean, identity: IIdentity) => {
     exists = exists === true;
     localStorage.setItem(filePath(path), content);
     if (!exists) {
@@ -289,7 +303,8 @@ const doWrite: Function = (path: string, content: string, exists: boolean, ident
     return [path, content];
 };
 
-export const write: Function = (path: string, content: string, identity: Identity): Promise<string[]> => {
+export const write: Function = (path: string, content: string, identitC: IIdentityContainer): Promise<string[]> => {
+    const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         const exists: boolean = fileExists(path);
@@ -303,11 +318,12 @@ export const write: Function = (path: string, content: string, identity: Identit
         return Promise.reject(e);
     }
 };
-export const touch: Function = (path: string, identity: Identity): Promise<string[]> => write(path, "", identity);
+export const touch: Function = (path: string, identitC: IIdentityContainer): Promise<string[]> => write(path, "", identitC);
 
 const doRead: Function = (path: string): string | null => localStorage.getItem(filePath(path));
 
-export const read: Function = (path: String, identity: Identity): Promise<string | null> => {
+export const read: Function = (path: String, identitC: IIdentityContainer): Promise<string | null> => {
+    const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         fileExistsCheck(path);
@@ -326,7 +342,8 @@ const doDel: Function = (path: string): string => {
     return path;
 };
 
-export const del: Function = (path: string, identity: Identity): Promise<string> => {
+export const del: Function = (path: string, identitC: IIdentityContainer): Promise<string> => {
+    const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         hasDirPermissionCheck(path, permBitWrit, identity);
@@ -374,7 +391,8 @@ const listEntry: Function = (entry: IFSListEntrySpawn): IFSListEntry => {
     };
 };
 
-export const list: Function = (path: string, identity: Identity): Promise<Array<IFSListEntry>> => {
+export const list: Function = (path: string, identitC: IIdentityContainer): Promise<Array<IFSListEntry>> => {
+    const identity:IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         dirExistsCheck(path);
@@ -401,7 +419,8 @@ export interface IFSListEntry {
     size: number;
 }
 
-export const getExec: Function = (exec: string, identity: Identity): Promise<string> => {
+export const getExec: Function = (exec: string, identitC: IIdentityContainer): Promise<string> => {
+    const identity:IIdentity = identitC.getIdentity();
     try {
         exec = cleanSlash(exec);
         const paths: string[] = resolveExecPaths(exec, identity);
@@ -419,7 +438,8 @@ export const getExec: Function = (exec: string, identity: Identity): Promise<str
     }
 };
 
-export const execRead: Function = (exec: string, identity: Identity): Promise<string[]> => {
+export const execRead: Function = (exec: string, identitC: IIdentityContainer): Promise<string[]> => {
+    const identity: IIdentity = identitC.getIdentity();
     return new Promise((resolve, reject) => {
         getExec(exec, identity)
             .then((path: string) => {
@@ -444,4 +464,5 @@ export default {
     execRead,
     chmod,
     chown,
+    resolveWorkingPaths
 };

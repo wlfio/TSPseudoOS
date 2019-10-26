@@ -67,7 +67,6 @@ const bash: Function = () => {
         if (parseInt(msg.from, 10) === activeProcessID) {
             activeOutputed = true;
         }
-        console.log("BASH OUTPUT", output, output.length);
         OS.Std.out(output);
         return Promise.resolve();
     };
@@ -82,7 +81,6 @@ const bash: Function = () => {
                     const exec: string = parts.shift() || "";
                     OS.Process.start(exec, parts)
                         .then((data: any) => {
-                            console.log("BASH APP START SUCCES", data, subProcs);
                             activeOutputed = false;
                             subProcs[data[0]] = {
                                 pid: data[0],
@@ -107,7 +105,6 @@ const bash: Function = () => {
                 }
             }
         } else {
-            console.log("BASH STD IN", data.data);
             resolveAppIn(data)
                 .then(() => {
                     //printPrompt(true);
@@ -116,7 +113,6 @@ const bash: Function = () => {
     };
     const end: Function = (pid: number) => {
         const sub: ISubProc | null = getSubProc(pid);
-        console.log("BASH SUB PROC END", sub);
         if (sub !== null) {
             delete subProcs[pid];
             if (pid === activeProcessID) {

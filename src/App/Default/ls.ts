@@ -4,6 +4,7 @@ import { ILibCMD } from "../../Services/Cmd";
 
 declare var CMD: ILibCMD;
 declare var OS: ILibOS;
+declare var START_PARAMS: [];
 
 const ls: Function = (): void => {
     const opts: { all: boolean; human: boolean; long: boolean; "no-group": boolean } = {
@@ -101,8 +102,7 @@ const ls: Function = (): void => {
             .catch(e => error(e));
 
     };
-
-    OS.Process.startEvent(start);
+    start(START_PARAMS);
 };
 
 export default ls;

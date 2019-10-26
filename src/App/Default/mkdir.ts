@@ -33,7 +33,7 @@ const mkdir: Function = () => {
         help: false,
         version: false,
         verbose: false,
-        paretns: false,
+        parents: false,
     };
     const optMap: { [s: string]: string } = {
         "?": "help",
@@ -45,13 +45,26 @@ const mkdir: Function = () => {
         OS.Process.crash(e);
     };
 
+    const breakPathIntoParentPaths: Function = (path: string): string[] => {
+        return [path];
+    }
+
+    const breakPathsIntoParentPaths: Function = (paths: string[]): string[] => {
+        return paths.reduce((out: string[], inp: string) => {
+            return [...out, ...breakPathIntoParentPaths(inp)];
+        }, [])
+    };
+
     //let count = 0;
     let count: number = 0;
     const make: Function = (paths: string[]): Promise<any> => {
         return new Promise((resolve, reject) => {
             console.log("MKDIR", paths[count]);
             OS.FS.mkdir(paths[count])
-                .then(() => {
+                .then((done: boolean) => {
+                    if (options.verbose && done) {
+                        OS.Std.out("created directory '" + paths[count] + "'");
+                    }
                     ++count;
                     if (count >= paths.length) {
                         resolve();
@@ -88,9 +101,15 @@ const mkdir: Function = () => {
             } else if (options.version) {
                 OS.Std.out(version);
             } else {
-                make(parms)
-                    .then(() => {
-                        OS.Process.end();
+                OS.FS.resolve(parms)
+                    .then((paths: string[]) => {
+                        if (options.parents) {
+                            paths = breakPathsIntoParentPaths(paths);
+                        }
+                        make(paths)
+                            .then(() => {
+                                OS.Process.end();
+                            });
                     })
                     .catch((e: any) => {
                         error(e);

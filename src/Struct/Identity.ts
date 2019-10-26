@@ -6,7 +6,11 @@ export interface IIdentity {
     priveledged: boolean;
 }
 
-export default class Identity implements IIdentity {
+export interface IIdentityContainer {
+    getIdentity(): IIdentity;
+}
+
+export default class Identity implements IIdentity, IIdentityContainer {
     user: string;
     groups: string[];
     workingDir: string;
@@ -24,6 +28,10 @@ export default class Identity implements IIdentity {
         this.workingDir = workingDir;
         this.priveledged = this.user === "root";
         this.path = ["/bin"];
+    }
+    
+    getIdentity(): Identity {
+        return this.clone();
     }
 
     setPriveledged(priveleged: boolean): void {

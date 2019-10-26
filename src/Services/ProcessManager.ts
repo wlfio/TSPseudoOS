@@ -31,8 +31,9 @@ export default class ProcessManager {
 
     OS: { [s: string]: { [s: string]: Function } } = {
         FS: {
-            list: (process: Process, data: string) => FS.list(data, process.identity),
-            mkdir: (process: Process, data: string) => FS.mkdir(data, process.identity),
+            list: (process: Process, data: string) => FS.list(data, process),
+            mkdir: (process: Process, data: string) => FS.mkdir(data, process),
+            resolve: (process: Process, data: string[]) => FS.resolveWorkingPaths(data, process),
         },
         Process: {
             end: (process: Process) => {
@@ -193,11 +194,15 @@ export default class ProcessManager {
             return;
         }
 
+        const start: number = Date.now();
         const p: Promise<any> = this.systemCall(process, type, msg.data);
         const wantsPromise: Boolean = (typeof msg.id === "string" && msg.id.length > 0);
         if (wantsPromise) {
             if (p instanceof Promise) {
-                p.then(data => process.respond(data, msg.id))
+                p.then(data => {
+                    console.log("SYSCALL TIME", type, Date.now() - start);
+                    process.respond(data, msg.id);
+                })
                     .catch((e: any) => process.respond(null, msg.id, e));
             } else {
                 throw ["Syscall Error", type.service + ">" + type.func, "did not return promise"];

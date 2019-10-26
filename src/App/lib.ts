@@ -86,6 +86,7 @@ const libJSPseudoOS: ILibOS = {
         mkdir: (path: string) => request(["FS", "mkdir"], path),
         touch: (path: string) => request(["FS", "touch"], path),
         del: (path: string) => request(["FS", "del"], path),
+        resolve: (paths: string[]) => request(["FS", "resolve"], paths),
     },
     Std: {
         out: (data: any) => msg(["Std", "out"], data),
