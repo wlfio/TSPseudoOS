@@ -45,11 +45,34 @@ const mkdir: Function = () => {
         OS.Process.crash(e);
     };
 
-    let count = 0;
+    //let count = 0;
+    let count: number = 0;
+    const make: Function = (paths: string[]): Promise<any> => {
+        return new Promise((resolve, reject) => {
+            console.log("MKDIR", paths[count]);
+            OS.FS.mkdir(paths[count])
+                .then(() => {
+                    ++count;
+                    if (count >= paths.length) {
+                        resolve();
+                        return;
+                    }
+                    make(paths)
+                        .then(() => {
+                            resolve();
+                        })
+                        .catch((e: any) => {
+                            reject(e);
+                        });
+                })
+                .catch((e: any) => {
+                    reject(e);
+                });
+        });
+    };
 
     OS.Util.loadArgs(START_PARAMS, options, optMap)
         .then(parms => {
-            console.log(START_PARAMS, options, optMap, parms);
             if (parms.length < 1 && !options.help && !options.version) {
                 OS.Process.crash(
                     new Error([
@@ -65,17 +88,13 @@ const mkdir: Function = () => {
             } else if (options.version) {
                 OS.Std.out(version);
             } else {
-                count = parms.length;
-                parms.map((p: string) => {
-                    OS.FS.mkdir(p)
-                        .then(() => {
-                            --count;
-                            if (count <= 0) {
-                                OS.Process.end();
-                            }
-                        })
-                        .catch((e: any) => error(e));
-                });
+                make(parms)
+                    .then(() => {
+                        OS.Process.end();
+                    })
+                    .catch((e: any) => {
+                        error(e);
+                    });
                 return;
             }
 

@@ -41,6 +41,7 @@ interface ILibProcess {
     //startEvent(callback: (data: string[]) => void): void;
     startEvent(callback: Function): void;
     msgEvent(callback: Function): void;
+    endEvent(callback: Function): void;
     msg(pid: number, msg: any): Promise<any>;
     end(): void;
     crash(error: any): void;

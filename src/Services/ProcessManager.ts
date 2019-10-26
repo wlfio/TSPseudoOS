@@ -32,9 +32,15 @@ export default class ProcessManager {
     OS: { [s: string]: { [s: string]: Function } } = {
         FS: {
             list: (process: Process, data: string) => FS.list(data, process.identity),
+            mkdir: (process: Process, data: string) => FS.mkdir(data, process.identity),
         },
         Process: {
-            end: (process: Process) => process.kill(),
+            end: (process: Process) => {
+                if (process.parent !== null) {
+                    process.parent.message(["Process", "end"], process.id);
+                }
+                process.kill();
+            },
             setSelf: (process: Process, data: { prop: string, value: any }) => process.set(data.prop, data.value),
             self: (process: Process) => Promise.resolve({ exec: process.exec, identity: process.identity.clone() }),
             start: (process: Process, data: any) => this.startProcess(data.exec, data.params, null, process),
@@ -206,7 +212,11 @@ export default class ProcessManager {
             }
         }
         return Promise.reject(
-            new Error(["PM Error", "Atempt to access non-existant System Call\n" + type.service + ">" + type.func, process.exec + "[" + process.id + "]"].join(" : "))
+            new Error([
+                "PM Error",
+                "Atempt to access non-existant System Call\n" + type.service + ">" + type.func,
+                process.exec + "[" + process.id + "]"
+            ].join(" : "))
         );
     }
 

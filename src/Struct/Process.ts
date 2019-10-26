@@ -11,7 +11,10 @@ const blobs: { [s: string]: { [s: string]: string } } = {
 
 };
 
-const getBlobURL: Function = (data: string, type: string): string => {
+const getBlobURL: Function = (data: string, type: string, cache?: boolean): string => {
+    if (cache === false) {
+        return generateBlobURL(data, type);
+    }
     const sha: string = sha1(data);
     if (!blobs.hasOwnProperty(type)) {
         blobs[type] = {};
@@ -22,15 +25,14 @@ const getBlobURL: Function = (data: string, type: string): string => {
     return blobs[type][sha];
 };
 
-const getJSBlobURL: Function = (data: string) => getBlobURL(data, "text/javascript");
+const getJSBlobURL: Function = (data: string, cache?: boolean) => getBlobURL(data, "text/javascript", cache);
 
-const getAppHtml: Function = (data: string[], params: {}) => {
+const getAppHtml: Function = (data: string[]) => {
     if (!(data instanceof Array)) { data = [data]; }
     let html: string = "<html><head><meta charset = \"UTF-8\">";
-    html += ["<scrip", "t>window.START_PARAMS = ", JSON.stringify(params), ";</scr", "ipt>"].join("");
     data.forEach(d => html += ["<script src=\"", d, "\"></scr", "ipt>"].join(""));
     html += "</head><body></body></html>";
-    return getBlobURL(html, "text/html");
+    return getBlobURL(html, "text/html", false);
 };
 
 const getIdentity: Function = (ident: Identity | null, parent: any): Identity => {
@@ -51,12 +53,14 @@ export default class Process {
     exec: string;
     params: string[];
     identity: Identity;
-    parent: any;
+    parent: Process | null;
     container: HTMLIFrameElement | null;
     bin: string[];
     dead: boolean;
+    paramsUrl: string = "";
+    htmlUrl: string = "";
 
-    constructor(id: number, exec: string, params: string[], identity: Identity | null, parent: any) {
+    constructor(id: number, exec: string, params: string[], identity: Identity | null, parent: Process | null) {
 
         this.id = id;
         this.exec = exec;
@@ -91,7 +95,9 @@ export default class Process {
     }
 
     spawn(container: HTMLIFrameElement): void {
-        container.src = getAppHtml(this.bin, this.params);
+        this.paramsUrl = getJSBlobURL("window.START_PARAMS = " + JSON.stringify(this.params) + ";");
+        this.htmlUrl = getAppHtml([this.paramsUrl, ...this.bin]);
+        container.src = this.htmlUrl;
         this.container = container;
     }
 
@@ -133,5 +139,14 @@ export default class Process {
         const parent: Node | null = this.container.parentNode;
         if (parent === null) { return; }
         parent.removeChild(this.container);
+        this.bin = [];
+        if (this.htmlUrl.length > 0) {
+            URL.revokeObjectURL(this.htmlUrl);
+        }
+        if (this.paramsUrl.length > 0) {
+            URL.revokeObjectURL(this.paramsUrl);
+        }
+        this.htmlUrl = "";
+        this.paramsUrl = "";
     }
 }

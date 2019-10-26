@@ -98,6 +98,7 @@ const libJSPseudoOS: ILibOS = {
     Process: {
         startEvent: cb => hookEvent(["Process", "start"], cb),
         msgEvent: cb => hookEvent(["Process", "msg"], cb),
+        endEvent: cb => hookEvent(["Process", "end"], cb),
         msg: (pid, msg) => request(["Process", "msg"], { pid: pid, msg: msg }),
         end: () => msg(["Process", "end"]),
         crash: error => msg(["Process", "crash"], (error instanceof Error) ? ["ERROR", ...error.message.split(" : ")] : error),

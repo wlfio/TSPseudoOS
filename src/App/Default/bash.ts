@@ -16,6 +16,8 @@ const bash: Function = () => {
     let user: string = "";
     let path: string = "";
     let host: string = window.location.origin.split("://")[1].split(":")[0] || "[MISSING HOST]";
+    let activeProcessID: number = -1;
+    let activeOutputed: boolean = false;
 
     const subProcs: { [s: number]: ISubProc } = {};
 
@@ -62,6 +64,10 @@ const bash: Function = () => {
                 output = proc.exec.split("/").pop() + ": " + msg.data[2];
             }
         }
+        if (parseInt(msg.from, 10) === activeProcessID) {
+            activeOutputed = true;
+        }
+        console.log("BASH OUTPUT", output, output.length);
         OS.Std.out(output);
         return Promise.resolve();
     };
@@ -77,11 +83,13 @@ const bash: Function = () => {
                     OS.Process.start(exec, parts)
                         .then((data: any) => {
                             console.log("BASH APP START SUCCES", data, subProcs);
+                            activeOutputed = false;
                             subProcs[data[0]] = {
                                 pid: data[0],
                                 exec: data[1],
                                 args: data[2]
                             };
+                            activeProcessID = data[0];
                         })
                         .catch((e: any) => {
                             console.log("EXEC ERROR", e);
@@ -102,11 +110,22 @@ const bash: Function = () => {
             console.log("BASH STD IN", data.data);
             resolveAppIn(data)
                 .then(() => {
-                    printPrompt(true);
+                    //printPrompt(true);
                 });
         }
     };
+    const end: Function = (pid: number) => {
+        const sub: ISubProc | null = getSubProc(pid);
+        console.log("BASH SUB PROC END", sub);
+        if (sub !== null) {
+            delete subProcs[pid];
+            if (pid === activeProcessID) {
+                printPrompt(activeOutputed);
+            }
+        }
+    }
 
+    OS.Process.endEvent(end);
     OS.Std.inEvent(stdIn);
     OS.Process.startEvent(start);
 };
