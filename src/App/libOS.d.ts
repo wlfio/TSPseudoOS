@@ -27,6 +27,9 @@ export interface IAppMessage {
     error?: any;
 }
 
+type AppOpts = { [s: string]: any };
+type AppOptsMap = { [s: string]: string };
+
 interface ILibStd {
     out(data: any): void;
     inEvent(cb: Function): void;
@@ -64,7 +67,8 @@ interface ILibFS {
     mkdir(path: string): Promise<boolean>;
     touch(path: string): Promise<string[]>;
     del(path: string): Promise<string>;
-    resolve(paths:string[]): Promise<string[]>;
+    resolve(paths: string[]): Promise<string[]>;
+    append(path: string, content: string): Promise<string[]>;
 }
 
 interface IDisplayItem {

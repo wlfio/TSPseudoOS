@@ -26,15 +26,23 @@ export default class Display {
                 this.input.focus();
             }
         });
-        document.addEventListener("click", () => {
-            this.input.focus();
-        });
+        // document.addEventListener("click", () => {
+        //     this.input.focus();
+        // });
         this.input.addEventListener("keydown", (ev: KeyboardEvent) => {
-            if (ev.key === "Enter") {
-                console.log(ev);
-                this.enterText();
-                ev.preventDefault();
+            if (ev.ctrlKey && ev.key !== "Control" && !ev.repeat) {
+                this.controlKey(ev.key);
+            } else if ((ev.key === "ArrowUp" || ev.key === "ArrowDown") && !ev.repeat) {
+                this.history(ev.key === "ArrowDown" ? -1 : 1);
+            } else if (ev.key === "Enter") {
+                if (!ev.repeat) {
+                    this.enterText();
+                }
+            } else {
+                return;
             }
+            ev.preventDefault();
+            console.log(ev);
         });
         this.processQueue();
     }
@@ -131,6 +139,7 @@ export default class Display {
         this.input.id = "input";
         this.input.tabIndex = 0;
         this.input.contentEditable = "true";
+        this.input.spellcheck = false;
         const body: HTMLBodyElement | null = document.querySelector("body");
         if (body !== null) {
             body.append(this.display);
@@ -138,7 +147,19 @@ export default class Display {
         }
     }
 
-    enterText(): void {
+    private history(dir: 1 | -1): void {
+        if (this.processManager !== null) {
+            this.processManager.stdIn("user", "§§§DIR§§§" + dir);
+        }
+    }
+
+    private controlKey(key: String): void {
+        if (this.processManager !== null) {
+            this.processManager.stdIn("user", "§§§CTRL§§§" + key);
+        }
+    }
+
+    private enterText(): void {
         const text: string = this.input.textContent || "";
         if (text.length > 0) {
             this.output(text, 0, true);

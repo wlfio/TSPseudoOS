@@ -87,6 +87,7 @@ const libJSPseudoOS: ILibOS = {
         touch: (path: string) => request(["FS", "touch"], path),
         del: (path: string) => request(["FS", "del"], path),
         resolve: (paths: string[]) => request(["FS", "resolve"], paths),
+        append: (path: string, content: string) => request(["FS", "append"], { path: path, content: content }),
     },
     Std: {
         out: (data: any) => msg(["Std", "out"], data),

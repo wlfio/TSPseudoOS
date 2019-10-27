@@ -1,10 +1,11 @@
 import { IFSListEntry } from "../../Services/FileSystem";
 import { ILibOS } from "../libOS";
 import { ILibCMD } from "../../Services/Cmd";
+import { IProcess } from "../../Struct/Process";
 
 declare var CMD: ILibCMD;
 declare var OS: ILibOS;
-declare var START_PARAMS: [];
+declare var PROCESS: IProcess;
 
 const ls: Function = (): void => {
     const opts: { all: boolean; human: boolean; long: boolean; "no-group": boolean } = {
@@ -102,7 +103,7 @@ const ls: Function = (): void => {
             .catch(e => error(e));
 
     };
-    start(START_PARAMS);
+    start(PROCESS.params);
 };
 
 export default ls;

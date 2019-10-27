@@ -22,11 +22,13 @@ export default class ProcessManager {
     pending: IPendingApp[] = [];
     libJS: string | null = null;
     processContainer: HTMLDivElement;
+    pendingContainer: HTMLIFrameElement | null;
 
     mainProcess: Process | null = null;
 
     constructor() {
         this.processContainer = document.createElement("div");
+        this.pendingContainer = this.createRawContainer();
     }
 
     OS: { [s: string]: { [s: string]: Function } } = {
@@ -34,14 +36,13 @@ export default class ProcessManager {
             list: (process: Process, data: string) => FS.list(data, process),
             mkdir: (process: Process, data: string) => FS.mkdir(data, process),
             resolve: (process: Process, data: string[]) => FS.resolveWorkingPaths(data, process),
+            append: (process: Process, data: { path: string, content: string }) => FS.append(data.path, data.content, process),
+            write: (process: Process, data: { path: string, content: string }) => FS.write(data.path, data.content, process),
+            touch: (process: Process, path: string) => FS.touch(path, process),
+            read: (process: Process, path: string) => FS.read(path, process),
         },
         Process: {
-            end: (process: Process) => {
-                if (process.parent !== null) {
-                    process.parent.message(["Process", "end"], process.id);
-                }
-                process.kill();
-            },
+            end: (process: Process) => process.kill(),
             setSelf: (process: Process, data: { prop: string, value: any }) => process.set(data.prop, data.value),
             self: (process: Process) => Promise.resolve({ exec: process.exec, identity: process.identity.clone() }),
             start: (process: Process, data: any) => this.startProcess(data.exec, data.params, null, process),
@@ -97,7 +98,7 @@ export default class ProcessManager {
             return this.pendStart(exec, params, identity, parent);
         }
         identity = identity || parent.identity;
-        // const frame = document.createElement('iframe');
+
         try {
             return new Promise((resolve, reject) => {
                 FS.execRead(exec, identity)
@@ -108,7 +109,7 @@ export default class ProcessManager {
 
                         const process: Process = new Process(this.pids, execPath, params, identity, parent);
 
-                        process.loadBin(this.libJS || "");
+                        process.loadLibJS(this.libJS || "");
                         process.loadBin("(" + code + ")();");
 
                         this.processes[this.pids] = process;
@@ -170,14 +171,30 @@ export default class ProcessManager {
         });
     }
 
-    private createContainer(pid: number, exec: Process): Promise<HTMLIFrameElement> {
+    private createRawContainer(): HTMLIFrameElement {
         const container: HTMLIFrameElement = document.createElement("iframe");
         container.sandbox.add("allow-scripts");
         container.sandbox.add("allow-same-origin");
+        container.id = "pending-container";
+        this.processContainer.append(container);
+        return container;
+    }
+
+    private getRawContainer(): HTMLIFrameElement {
+        if (this.pendingContainer === null) {
+            this.pendingContainer = this.createRawContainer();
+        }
+        const container: HTMLIFrameElement = this.pendingContainer;
+        this.pendingContainer = null;
+        window.setTimeout(() => { if (this.pendingContainer === null) { this.pendingContainer = this.createRawContainer(); } }, 100);
+        return container;
+    }
+
+    private createContainer(pid: number, exec: Process): Promise<HTMLIFrameElement> {
+        const container: HTMLIFrameElement = this.getRawContainer();
         container.setAttribute("data-exec", exec.exec);
         container.setAttribute("data-user", exec.identity.user);
         container.id = "pid-" + pid;
-        this.processContainer.append(container);
         return Promise.resolve(container);
     }
 
@@ -194,13 +211,11 @@ export default class ProcessManager {
             return;
         }
 
-        const start: number = Date.now();
         const p: Promise<any> = this.systemCall(process, type, msg.data);
         const wantsPromise: Boolean = (typeof msg.id === "string" && msg.id.length > 0);
         if (wantsPromise) {
             if (p instanceof Promise) {
                 p.then(data => {
-                    console.log("SYSCALL TIME", type, Date.now() - start);
                     process.respond(data, msg.id);
                 })
                     .catch((e: any) => process.respond(null, msg.id, e));

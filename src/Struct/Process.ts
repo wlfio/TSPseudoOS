@@ -48,7 +48,16 @@ const getIdentity: Function = (ident: Identity | null, parent: any): Identity =>
     }
 };
 
-export default class Process implements IIdentityContainer {
+export interface IProcess {
+    id: number;
+    exec: string;
+    params: string[];
+    identity: Identity;
+    parent: Process | null;
+    dead: boolean;
+}
+
+export default class Process implements IProcess, IIdentityContainer {
     id: number;
     exec: string;
     params: string[];
@@ -59,9 +68,9 @@ export default class Process implements IIdentityContainer {
     dead: boolean;
     paramsUrl: string = "";
     htmlUrl: string = "";
+    static libJS: string | null = null;
 
     constructor(id: number, exec: string, params: string[], identity: Identity | null, parent: Process | null) {
-
         this.id = id;
         this.exec = exec;
         this.params = params;
@@ -93,13 +102,24 @@ export default class Process implements IIdentityContainer {
         }
     }
 
-    loadBin(bin: string): Process {
-        this.bin.push(getJSBlobURL(bin));
+    loadLibJS(code: string): Process {
+        if (Process.libJS === null) {
+            Process.libJS = getJSBlobURL(code);
+        }
+        this.bin.push(Process.libJS || "");
+        return this;
+    }
+
+    loadBin(code: string): Process {
+        this.bin.push(getJSBlobURL(code));
         return this;
     }
 
     spawn(container: HTMLIFrameElement): void {
-        this.paramsUrl = getJSBlobURL("window.PID = " + this.id + ";window.START_PARAMS = " + JSON.stringify(this.params) + ";");
+        this.paramsUrl = getJSBlobURL([
+            "window.PROCESS = " + JSON.stringify(this) + ";",
+            //"window.START_PARAMS = " + JSON.stringify(this.params) + ";"
+        ].join(""));
         this.htmlUrl = getAppHtml([this.paramsUrl, ...this.bin]);
         container.src = this.htmlUrl;
         this.container = container;
@@ -143,6 +163,11 @@ export default class Process implements IIdentityContainer {
         const parent: Node | null = this.container.parentNode;
         if (parent === null) { return; }
         parent.removeChild(this.container);
+
+        if (this.parent !== null) {
+            this.parent.message(["Process", "end"], this.id);
+        }
+
         this.bin = [];
         if (this.htmlUrl.length > 0) {
             URL.revokeObjectURL(this.htmlUrl);

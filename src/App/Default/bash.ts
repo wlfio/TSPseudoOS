@@ -1,9 +1,10 @@
 import { ILibCMD } from "../../Services/Cmd";
 import { ILibOS, IStdInMsg } from "../libOS";
-import { IIdentity } from "../../Struct/Identity";
+import { IProcess } from "../../Struct/Process";
 
 declare var CMD: ILibCMD;
 declare var OS: ILibOS;
+declare var PROCESS: IProcess;
 
 interface ISubProc {
     pid: number;
@@ -43,17 +44,14 @@ const bash: Function = () => {
         );
     };
 
-    const cancelCurrentProcess: Function = () => {
-        printPrompt();
-    };
+    // const cancelCurrentProcess: Function = () => {
+    //     printPrompt();
+    // };
 
-    const start: Function = () => {
-        OS.Process.self()
-            .then((data: { exec: string, identity: IIdentity }) => {
-                user = data.identity.user;
-                path = data.identity.workingDir;
-                printPrompt();
-            });
+    const start: Function = (process: IProcess) => {
+        user = process.identity.user;
+        path = process.identity.workingDir;
+        printPrompt();
     };
 
     const resolveAppIn: Function = (msg: IStdInMsg): Promise<any> => {
@@ -71,12 +69,36 @@ const bash: Function = () => {
         return Promise.resolve();
     };
 
+    const ctrlCode: Function = (type: string): void => {
+        console.log("CTRL CODE", type);
+    };
+
+    const history: Function = (dir: number): void => {
+        console.log("DIR", dir);
+    }
+
+    const specialCode: Function = (code: string): void => {
+        const parts: string[] = code.split("§§§").filter(s => s.length > 0);
+        switch (parts[0].toLowerCase()) {
+            case "ctrl":
+                ctrlCode(parts[1]);
+                break;
+            case "dir":
+                history(parseInt(parts[1], 10));
+                break;
+            default:
+                console.log("SPECIAL CODE", parts);
+                break;
+        }
+    };
+
     const stdIn: Function = (data: IStdInMsg) => {
         if (data.from === "user") {
             if (typeof data.data === "string") {
-                if (data.data === "§§§§§cancel§§§§§") {
-                    cancelCurrentProcess();
+                if (data.data.startsWith("§§§")) {
+                    specialCode(data.data);
                 } else {
+                    OS.FS.append("~/.bash_history", data.data + "\n");
                     const parts: string[] = data.data.split(" ").map(s => s.trim());
                     const exec: string = parts.shift() || "";
                     OS.Process.start(exec, parts)
@@ -119,11 +141,11 @@ const bash: Function = () => {
                 printPrompt(activeOutputed);
             }
         }
-    }
+    };
 
     OS.Process.endEvent(end);
     OS.Std.inEvent(stdIn);
-    OS.Process.startEvent(start);
+    start(PROCESS);
 };
 
 export default bash;

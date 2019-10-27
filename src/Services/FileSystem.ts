@@ -202,15 +202,22 @@ const resolveWorkingPath: Function = (path: string, working: string): string => 
     return path;
 };
 
-const resolvePath: Function = (path: string, identity: IIdentity): string => {
+const resolvePath: Function = (path: string, identity: IIdentity, check?: boolean): string => {
+    check = check !== false;
+    path = path.trim();
+    if (path.charAt(0) === "~") {
+        path = path.replace("~", "/home/" + identity.user + "/");
+    }
     path = resolveWorkingPath(path, identity.workingDir);
-    dirAccessCheck(path, identity);
+    if (check) {
+        dirAccessCheck(path, identity);
+    }
     return path;
 };
 
 export const resolveWorkingPaths: Function = (paths: string[], identitC: IIdentityContainer): Promise<string[]> => {
-    return Promise.resolve(paths.map(p => resolvePath(p, identitC.getIdentity())));
-}
+    return Promise.resolve(paths.map(p => resolvePath(p, identitC.getIdentity(), false)));
+};
 
 const resolveExecPaths: Function = (exec: string, identity: IIdentity): string[] =>
     [resolvePath(exec, identity), ...identity.path.map(p => resolveWorkingPath(exec, p))];
@@ -254,7 +261,7 @@ const doChown: Function = (path: string, identity: IIdentity, user?: string, gro
 };
 
 export const chown: Function = (path: string, identitC: IIdentityContainer, user?: string, group?: string) => {
-    const identity:IIdentity = identitC.getIdentity();
+    const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         dirExistsCheck(path);
@@ -279,10 +286,13 @@ const doMkdir: Function = (path: string, identity: IIdentity): boolean => {
     return true;
 };
 
-export const mkdir: Function = (path: string, identitC: IIdentityContainer) => {
-    const identity:IIdentity = identitC.getIdentity();
+export const mkdir: Function = (path: string, identitC: IIdentityContainer): Promise<boolean> => {
+    const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
+        if (isDir(path)) {
+            return Promise.resolve(false);
+        }
         fileDirExistsCheck(path);
         fileNotExistsCheck(path);
         hasDirPermissionCheck(path, permBitWrit, identity);
@@ -334,6 +344,29 @@ export const read: Function = (path: String, identitC: IIdentityContainer): Prom
     }
 };
 
+export const append: Function = (path: string, newContent: string, identitC: IIdentityContainer): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+        read(path, identitC)
+            .then((content: string | null) => {
+                content = content || "";
+                content += newContent;
+                write(path, content, identitC)
+                    .then((wrt: string[]) => {
+                        resolve(wrt);
+                    }).catch((e: any) => {
+                        reject(e);
+                    });
+            })
+            .catch(() => {
+                write(path, newContent, identitC)
+                    .then((wrt: string[]) => {
+                        resolve(wrt);
+                    }).catch((e: any) => {
+                        reject(e);
+                    });
+            });
+    });
+};
 
 const doDel: Function = (path: string): string => {
     localStorage.removeItem(filePath(path));
@@ -392,7 +425,7 @@ const listEntry: Function = (entry: IFSListEntrySpawn): IFSListEntry => {
 };
 
 export const list: Function = (path: string, identitC: IIdentityContainer): Promise<Array<IFSListEntry>> => {
-    const identity:IIdentity = identitC.getIdentity();
+    const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
         dirExistsCheck(path);
@@ -420,7 +453,7 @@ export interface IFSListEntry {
 }
 
 export const getExec: Function = (exec: string, identitC: IIdentityContainer): Promise<string> => {
-    const identity:IIdentity = identitC.getIdentity();
+    const identity: IIdentity = identitC.getIdentity();
     try {
         exec = cleanSlash(exec);
         const paths: string[] = resolveExecPaths(exec, identity);
@@ -464,5 +497,6 @@ export default {
     execRead,
     chmod,
     chown,
-    resolveWorkingPaths
+    resolveWorkingPaths,
+    append,
 };
