@@ -28,7 +28,7 @@ export default class Display {
         });
 
         this.input.addEventListener("keydown", (ev: KeyboardEvent) => {
-            if (ev.ctrlKey && ev.key !== "Control" && !ev.repeat) {
+            if (ev.ctrlKey && ev.key !== "Control" && !ev.repeat && ev.key !== "F5") {
                 this.controlKey(ev.key);
             } else if ((ev.key === "ArrowUp" || ev.key === "ArrowDown") && !ev.repeat) {
                 this.history(ev.key === "ArrowDown" ? -1 : 1);
@@ -40,7 +40,6 @@ export default class Display {
                 return;
             }
             ev.preventDefault();
-            //console.log(ev);
         });
         this.processQueue();
     }
