@@ -26,9 +26,7 @@ export default class Display {
                 this.input.focus();
             }
         });
-        // document.addEventListener("click", () => {
-        //     this.input.focus();
-        // });
+
         this.input.addEventListener("keydown", (ev: KeyboardEvent) => {
             if (ev.ctrlKey && ev.key !== "Control" && !ev.repeat) {
                 this.controlKey(ev.key);
@@ -42,7 +40,7 @@ export default class Display {
                 return;
             }
             ev.preventDefault();
-            console.log(ev);
+            //console.log(ev);
         });
         this.processQueue();
     }
@@ -104,6 +102,7 @@ export default class Display {
         if (data instanceof Array) {
             return this.reduceArrayForDisplay(data, 0);
         }
+        console.log(data);
         return "FAILED TO CONVERT FOR DISPLAY";
     }
 
@@ -148,25 +147,33 @@ export default class Display {
     }
 
     private history(dir: 1 | -1): void {
-        if (this.processManager !== null) {
-            this.processManager.stdIn("user", "§§§DIR§§§" + dir);
-        }
+        this.specialUserInput("DIR", dir.toString());
     }
 
-    private controlKey(key: String): void {
-        if (this.processManager !== null) {
-            this.processManager.stdIn("user", "§§§CTRL§§§" + key);
-        }
+    private controlKey(key: string): void {
+        this.specialUserInput("CTRL", key);
+    }
+
+    public setText(text: string): void {
+        this.input.textContent = text;
     }
 
     private enterText(): void {
         const text: string = this.input.textContent || "";
         if (text.length > 0) {
             this.output(text, 0, true);
-            if (this.processManager !== null) {
-                this.processManager.stdIn("user", text);
-            }
-            this.input.textContent = "";
+            this.userInput(text);
+            this.setText("");
+        }
+    }
+
+    private specialUserInput(type: string, text: string): void {
+        this.userInput("§§§" + type + "§§§" + text);
+    }
+
+    private userInput(text: string): void {
+        if (this.processManager !== null) {
+            this.processManager.stdIn("user", text);
         }
     }
 }

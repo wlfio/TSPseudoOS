@@ -92,6 +92,8 @@ const libJSPseudoOS: ILibOS = {
     Std: {
         out: (data: any) => msg(["Std", "out"], data),
         inEvent: (cb: Function) => hookEvent({ service: "Std", func: "in" }, cb),
+        prompt: (text: string) => msg(["Std", "prompt"], text),
+        in: (pid: number, data: any, source?: number | string) => msg(["Std", "in"], { pid: pid, data: data, source: source }),
     },
     Out: {
         print: (data, over?: number) => msg(["Out", "print"], { txt: data, over: over || 0 }),

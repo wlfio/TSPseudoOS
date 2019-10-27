@@ -33,6 +33,8 @@ type AppOptsMap = { [s: string]: string };
 interface ILibStd {
     out(data: any): void;
     inEvent(cb: Function): void;
+    prompt(text: string): void;
+    in(pid: number, data: any, source?: number | string): void;
 }
 
 interface ILibOut {

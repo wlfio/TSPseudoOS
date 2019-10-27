@@ -44,13 +44,19 @@ export default class ProcessManager {
         Process: {
             end: (process: Process) => process.kill(),
             setSelf: (process: Process, data: { prop: string, value: any }) => process.set(data.prop, data.value),
-            self: (process: Process) => Promise.resolve({ exec: process.exec, identity: process.identity.clone() }),
+            self: (process: Process) => Promise.resolve(process.data()),
             start: (process: Process, data: any) => this.startProcess(data.exec, data.params, null, process),
             crash: (process: Process, error: any) => { this.OS.Std.out(process, error); process.kill(); },
         },
         Std: {
             out: (process: Process, data: any) =>
                 process.hasParent() ? process.intoParent(data) : this.OS.Out.print({ data: data, over: 0 }),
+            prompt: (process: Process, text: string) => {
+                if (this.mainProcess !== null && this.mainProcess.id === process.id && this.display !== null) {
+                    this.display.setText(text);
+                }
+            },
+            in: (process: Process, data: any) => process.intoChild(data.pid, data.data, data.source || null),
         },
         Out: {
             print: (item: IDisplayItem) => this.output(item.data, item.over, false),
@@ -121,7 +127,7 @@ export default class ProcessManager {
                         this.createContainer(process.id, process)
                             .then((container: HTMLIFrameElement) => {
                                 process.spawn(container);
-                                resolve([process.id, process.exec, process.params]);
+                                resolve(process.data());
                             }).catch((e: any) => {
                                 reject(e);
                             });

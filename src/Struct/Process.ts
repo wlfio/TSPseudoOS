@@ -1,5 +1,5 @@
 import sha1 from "sha1";
-import Identity, { IIdentityContainer } from "./Identity";
+import Identity, { IIdentityContainer, IIdentity } from "./Identity";
 import { IAppMessageType, IAppMessage } from "../App/libOS";
 
 const generateBlobURL: Function = (data: string, type: string): string => {
@@ -35,7 +35,7 @@ const getAppHtml: Function = (data: string[]) => {
     return getBlobURL(html, "text/html", false);
 };
 
-const getIdentity: Function = (ident: Identity | null, parent: any): Identity => {
+const getIdentity: Function = (ident: IIdentity | null, parent: any): Identity => {
     if (!(ident instanceof Identity)) {
         if (parent.hasOwnProperty("identity")) {
             ident = parent.identity;
@@ -52,8 +52,8 @@ export interface IProcess {
     id: number;
     exec: string;
     params: string[];
-    identity: Identity;
-    parent: Process | null;
+    identity: IIdentity;
+    // parent: IProcess | null;
     dead: boolean;
 }
 
@@ -61,37 +61,78 @@ export default class Process implements IProcess, IIdentityContainer {
     id: number;
     exec: string;
     params: string[];
-    identity: Identity;
-    parent: Process | null;
+    identity: IIdentity;
+    // parent: Process | null;
     container: HTMLIFrameElement | null;
     bin: string[];
     dead: boolean;
     paramsUrl: string = "";
     htmlUrl: string = "";
+    children: { [s: number]: Process } = [];
     static libJS: string | null = null;
 
-    constructor(id: number, exec: string, params: string[], identity: Identity | null, parent: Process | null) {
+    parentInCB: Function | null = null;
+    parentEndCB: Function | null = null;
+
+
+    constructor(id: number, exec: string, params: string[], identity: IIdentity | null, parent: Process | null) {
         this.id = id;
         this.exec = exec;
         this.params = params;
         this.identity = getIdentity(identity, parent);
-        this.parent = parent || null;
+        // this.parent = parent || null;
         this.container = null;
         this.bin = [];
         this.dead = false;
+
+        if (parent instanceof Process) {
+            const cbs: [Function, Function] = parent.registerChild(this);
+            this.parentInCB = cbs[0];
+            this.parentEndCB = cbs[1];
+        }
     }
 
-    getIdentity(): Identity {
-        return this.identity.getIdentity();
+    registerChild(process: Process): [Function, Function] {
+        this.children[process.id] = process;
+        return [
+            (data: any) => {
+                this.stdIn(process.id, data);
+            },
+            () => { this.removeChild(process); }
+        ];
+    }
+
+    getIdentity(): IIdentity {
+        if (this.identity instanceof Identity) {
+            return this.identity.getIdentity();
+        } else {
+            return this.identity;
+        }
     }
 
     hasParent(): boolean {
-        return this.parent !== null;
+        return this.parentInCB !== null;
     }
 
     intoParent(data: any): void {
-        if (this.parent instanceof Process) {
-            this.parent.stdIn(this.id, data);
+        if (this.parentInCB !== null) {
+            this.parentInCB(data);
+        }
+    }
+
+    getChild(pid: number): Process | null {
+        return this.children[pid] || null;
+    }
+
+    identifier(): string {
+        return this.exec + "[" + this.id + "]";
+    }
+
+    intoChild(pid: number, data: any, source?: string | number): void {
+        const child: Process | null = this.getChild(pid);
+        if (child !== null) {
+            console.log(this.identifier(), " > ", child.identifier(), data, source);
+            child.stdIn(source || this.id, data);
         }
     }
 
@@ -118,7 +159,7 @@ export default class Process implements IProcess, IIdentityContainer {
     spawn(container: HTMLIFrameElement): void {
         this.paramsUrl = getJSBlobURL([
             "window.PROCESS = " + JSON.stringify(this) + ";",
-            //"window.START_PARAMS = " + JSON.stringify(this.params) + ";"
+            // "window.START_PARAMS = " + JSON.stringify(this.params) + ";"
         ].join(""));
         this.htmlUrl = getAppHtml([this.paramsUrl, ...this.bin]);
         container.src = this.htmlUrl;
@@ -132,6 +173,16 @@ export default class Process implements IProcess, IIdentityContainer {
 
     stdIn(source: number | string, data: any): void {
         this.message(["Std", "in"], { from: source, data });
+    }
+
+    data(): IProcess {
+        return {
+            id: this.id,
+            exec: this.exec,
+            params: [... this.params],
+            identity: this.identity,
+            dead: this.dead,
+        };
     }
 
     message(typea: string[], data: any, id?: string, error?: any): boolean {
@@ -157,6 +208,11 @@ export default class Process implements IProcess, IIdentityContainer {
         this.message(["response"], data, id, error);
     }
 
+    removeChild(process: Process): void {
+        this.message(["Process", "end"], process.id);
+        delete this.children[process.id];
+    }
+
     kill(): void {
         this.dead = true;
         if (this.container === null) { return; }
@@ -164,8 +220,8 @@ export default class Process implements IProcess, IIdentityContainer {
         if (parent === null) { return; }
         parent.removeChild(this.container);
 
-        if (this.parent !== null) {
-            this.parent.message(["Process", "end"], this.id);
+        if (this.parentEndCB !== null) {
+            this.parentEndCB();
         }
 
         this.bin = [];

@@ -7,6 +7,16 @@ import { DefaultApps } from "./App/Default/index";
 const rootIdent: Identity = new Identity("root", [], "/");
 const guestIdent: Identity = new Identity("guest", [], "/home/guest");
 
+const InIframe: Function = (): boolean => {
+    try {
+        return window.self !== window.top;
+    } catch (e) {
+        return true;
+    }
+};
+
+const isRemote: boolean = InIframe();
+
 FS.mkdir("/bin", rootIdent);
 
 FS.mkdir("/home", rootIdent);
@@ -30,11 +40,14 @@ Object.entries(DefaultApps).map((app: Array<any>) => {
     FS.chmod("bin/" + app[0], rootIdent, "755");
 });
 
+
 const display: Display = new Display();
 const processManager: ProcessManager = new ProcessManager();
 
 
 document.addEventListener("DOMContentLoaded", () => {
+    console.log(location.host, isRemote);
+
     display.init(processManager);
     processManager.init(display);
 
