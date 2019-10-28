@@ -1,9 +1,16 @@
 import uuid from "uuid";
-import { IAppMessage, IAppMessageType, ILibOS } from "./libOS";
+import { IAppMessage, IAppMessageType, ILibOS, IStdInMsg } from "./libOS";
 import { Util } from "./Util";
 import CMD from "../Services/Cmd";
+import { IProcess } from "../Struct/Process";
 
 declare var OS: ILibOS;
+declare var PROCESS: IProcess;
+
+var ogLog = console.log;
+console.log = (...args: any[]) => {
+    ogLog(PROCESS.exec + "[" + PROCESS.id + "]", ...args);
+}
 
 // @ts-ignore
 delete window.localStorage;
@@ -67,6 +74,7 @@ const request: Function = (type: string[], data?: any): Promise<any> => {
     });
 };
 
+
 // @ts-ignore
 window.addEventListener("message", response);
 
@@ -76,6 +84,27 @@ const hookEvent: Function = (type: IAppMessageType | [string, string], cb: Funct
         hooks[event] = [];
     }
     hooks[event] = [...hooks[event], cb];
+};
+
+const awaitProcs: { [s: number]: IPromiseHolder } = {};
+
+const startAndAwait: Function = (exec: string, params: string[]) => {
+    return new Promise((resolve, reject) => {
+        OS.Process.start(exec, params)
+            .then((proc: IProcess) => {
+                awaitProcs[proc.id] = {
+                    resolve: resolve,
+                    reject: reject,
+                };
+            })
+            .catch(e => reject(e));
+    });
+};
+
+const awaitIn: (msg: IStdInMsg) => void = (msg: IStdInMsg): void => {
+    if (awaitProcs.hasOwnProperty(msg.from) && typeof msg.from === "number") {
+        awaitProcs[msg.from].resolve(msg);
+    }
 };
 
 const libJSPseudoOS: ILibOS = {
@@ -103,6 +132,7 @@ const libJSPseudoOS: ILibOS = {
         startEvent: cb => hookEvent(["Process", "start"], cb),
         msgEvent: cb => hookEvent(["Process", "msg"], cb),
         endEvent: cb => hookEvent(["Process", "end"], cb),
+        selfEvent: cb => hookEvent(["Process", "self"], cb),
         msg: (pid, msg) => request(["Process", "msg"], { pid: pid, msg: msg }),
         end: () => msg(["Process", "end"]),
         crash: error => msg(["Process", "crash"], (error instanceof Error) ? ["ERROR", ...error.message.split(" : ")] : error),
@@ -111,6 +141,8 @@ const libJSPseudoOS: ILibOS = {
         kill: (pid) => request(["Process", "kill"], pid),
         list: () => request(["Process", "list"]),
         self: () => request(["Process", "self"]),
+        startAndAwaitOutput: (exec, params) => startAndAwait(exec, params),
+        changeWorkingDir: (path, pid) => request(["Process", "changeWorkingDir"], { path, pid }),
     },
     Util: Util,
 };
@@ -120,6 +152,8 @@ window.OS = libJSPseudoOS;
 // @ts-ignore
 window.CMD = CMD;
 
+
+OS.Std.inEvent(awaitIn);
 
 
 document.addEventListener("DOMContentLoaded", () => {

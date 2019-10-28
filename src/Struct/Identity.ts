@@ -1,9 +1,12 @@
+import FS from "../Services/FileSystem";
+
 export interface IIdentity {
     user: string;
     groups: string[];
     workingDir: string;
     path: string[];
     priveledged: boolean;
+    changeWorkingPath(path: string): Promise<boolean>;
 }
 
 export interface IIdentityContainer {
@@ -29,7 +32,7 @@ export default class Identity implements IIdentity, IIdentityContainer {
         this.priveledged = this.user === "root";
         this.path = ["/bin"];
     }
-    
+
     getIdentity(): Identity {
         return this.clone();
     }
@@ -40,6 +43,19 @@ export default class Identity implements IIdentity, IIdentityContainer {
 
     addToPath(path: string): void {
         this.path = [...this.path, path].filter((e, i, a) => a.indexOf(e) === i);
+    }
+
+    async changeWorkingPath(path: string): Promise<boolean> {
+        try {
+            const exists = await FS.list(path, this);
+            if (exists instanceof Array) {
+                this.workingDir = path;
+                return Promise.resolve(true);
+            }
+        } catch (e) {
+            return Promise.reject(e);
+        }
+        return Promise.resolve(false);
     }
 
     clone(): Identity {

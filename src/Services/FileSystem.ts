@@ -126,13 +126,18 @@ const getFileExt: Function = (path: string): string => {
 
 const isDir: Function = (path: string) => {
     if (path.length < 1 || path === "/") {
-        return true;
+        path = "/";
     }
     return localStorage.getItem(dirPath(path)) === dirString;
 };
 
+export const createRoot: Function = (identity: IIdentity): void => {
+    doMkdir("/", identity);
+}
+
 const isDirCheck: Function = (path: string) => {
     if (!isDir(path)) {
+        console.trace();
         throw new Error(["Access Error", "Path is not directory", path].join(" : "));
     }
 };
@@ -182,7 +187,7 @@ const fileDirExistsCheck: Function = (path: string): void => {
 
 const fileExistsCheck: Function = (path: string) => {
     if (!fileExists(path)) {
-        throw new Error(["Access Error", "Cannot access '" + path + "': No such file or directory", path].join(" : "));
+        throw new Error(["Access Error", "Cannot access '" + path + "': No such file", path].join(" : "));
     }
 };
 
@@ -387,6 +392,29 @@ export const del: Function = (path: string, identitC: IIdentityContainer): Promi
     }
 };
 
+
+const doDelDir: Function = (path: string) => {
+    Object.keys(localStorage).forEach(p => {
+        const s: string = p.slice(4);
+        if (s.startsWith(path)) {
+            localStorage.removeItem(p);
+        }
+    });
+}
+
+
+export const delDir: Function = (path: string, identitC: IIdentityContainer): Promise<string> => {
+    const identity: IIdentity = identitC.getIdentity();
+    try {
+        path = resolvePath(path, identity);
+        hasDirPermissionCheck(path, permBitWrit, identity);
+        dirExistsCheck(path);
+        return Promise.resolve(doDelDir(path));
+    } catch (e) {
+        return Promise.reject(e);
+    }
+};
+
 const getChildren: Function = (path: string): Array<IFSListEntrySpawn> => {
     const f: string = filePath(path) + "/";
     const d: string = dirPath(path) + "/";
@@ -490,6 +518,7 @@ export default {
     read,
     write,
     del,
+    delDir,
     list,
     touch,
     mkdir,

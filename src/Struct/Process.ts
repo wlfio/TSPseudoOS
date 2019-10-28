@@ -55,6 +55,7 @@ export interface IProcess {
     identity: IIdentity;
     // parent: IProcess | null;
     dead: boolean;
+    parentID: number;
 }
 
 export default class Process implements IProcess, IIdentityContainer {
@@ -73,6 +74,7 @@ export default class Process implements IProcess, IIdentityContainer {
 
     parentInCB: Function | null = null;
     parentEndCB: Function | null = null;
+    parentID: number = -1;
 
 
     constructor(id: number, exec: string, params: string[], identity: IIdentity | null, parent: Process | null) {
@@ -86,6 +88,7 @@ export default class Process implements IProcess, IIdentityContainer {
         this.dead = false;
 
         if (parent instanceof Process) {
+            this.parentID = parent.id;
             const cbs: [Function, Function] = parent.registerChild(this);
             this.parentInCB = cbs[0];
             this.parentEndCB = cbs[1];
@@ -141,6 +144,11 @@ export default class Process implements IProcess, IIdentityContainer {
             case "workingDir":
                 this.identity.workingDir = value;
         }
+        this.updateSelf();
+    }
+
+    updateSelf(): void {
+        this.message(["Process", "self"], this.data());
     }
 
     loadLibJS(code: string): Process {
@@ -182,6 +190,7 @@ export default class Process implements IProcess, IIdentityContainer {
             params: [... this.params],
             identity: this.identity,
             dead: this.dead,
+            parentID: this.parentID,
         };
     }
 

@@ -1,4 +1,4 @@
-import FS from "./Services/FileSystem";
+import FS, { createRoot } from "./Services/FileSystem";
 import Identity from "./Struct/Identity";
 import ProcessManager from "./Services/ProcessManager";
 import Display from "./Services/Display";
@@ -16,6 +16,8 @@ const InIframe: Function = (): boolean => {
 };
 
 const isRemote: boolean = InIframe();
+
+createRoot(rootIdent);
 
 FS.mkdir("/bin", rootIdent);
 

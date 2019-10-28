@@ -2,7 +2,7 @@ import FS from "./FileSystem";
 import Process from "../Struct/Process";
 import Identity from "../Struct/Identity";
 import { IAppMessage, IAppMessageType, IDisplayItem } from "../App/libOS";
-import Display from "./Display";
+import { IDisplay } from "./Display";
 
 const getLib: Function = async () => {
     const request: Request = new Request("osLib.bundle.js");
@@ -16,7 +16,7 @@ interface IPendingApp {
 }
 
 export default class ProcessManager {
-    display: Display | null = null;
+    display: IDisplay | null = null;
     processes: { [s: number]: Process } = {};
     pids: number = 0;
     pending: IPendingApp[] = [];
@@ -40,6 +40,7 @@ export default class ProcessManager {
             write: (process: Process, data: { path: string, content: string }) => FS.write(data.path, data.content, process),
             touch: (process: Process, path: string) => FS.touch(path, process),
             read: (process: Process, path: string) => FS.read(path, process),
+            del: (process: Process, path: string) => FS.del(path, process),
         },
         Process: {
             end: (process: Process) => process.kill(),
@@ -47,6 +48,7 @@ export default class ProcessManager {
             self: (process: Process) => Promise.resolve(process.data()),
             start: (process: Process, data: any) => this.startProcess(data.exec, data.params, null, process),
             crash: (process: Process, error: any) => { this.OS.Std.out(process, error); process.kill(); },
+            changeWorkingDir: (process: Process, data: any) => this.changeWorkingDir(data, process),
         },
         Std: {
             out: (process: Process, data: any) =>
@@ -61,6 +63,9 @@ export default class ProcessManager {
         Out: {
             print: (item: IDisplayItem) => this.output(item.data, item.over, false),
             printLn: (item: IDisplayItem) => { console.log(item); return this.output(item.data, item.over, true); },
+        },
+        Display: {
+            info: () => this.display !== null ? this.display.info() : Promise.reject(new Error("PM Error : missing display : ...")),
         }
     };
 
@@ -70,7 +75,25 @@ export default class ProcessManager {
         }
     }
 
-    init(display: Display): void {
+    async changeWorkingDir(data: any, process: Process): Promise<boolean> {
+        try {
+            const path = data.path;
+            const pid = data.pid || process.id;
+            const toChange = this.getProcessFromID(pid);
+            if (toChange !== null) {
+                if (toChange.identity.user === process.identity.user || process.identity.priveledged) {
+                    const done = await toChange.identity.changeWorkingPath(path);
+                    toChange.updateSelf();
+                    return Promise.resolve(done);
+                }
+            }
+            return Promise.reject(new Error("Change Dir error : no proccess with id " + pid + " : " + JSON.stringify(data)));
+        } catch (e) {
+            return Promise.reject(e);
+        }
+    }
+
+    init(display: IDisplay): void {
         this.processContainer.id = "processes";
         const body: HTMLBodyElement | null = document.querySelector("body");
         if (body !== null) {
@@ -104,6 +127,8 @@ export default class ProcessManager {
             return this.pendStart(exec, params, identity, parent);
         }
         identity = identity || parent.identity;
+
+        params = params.filter(s => s.length > 0);
 
         try {
             return new Promise((resolve, reject) => {
@@ -244,6 +269,10 @@ export default class ProcessManager {
                 process.exec + "[" + process.id + "]"
             ].join(" : "))
         );
+    }
+
+    log(...args: any[]) {
+        console.log("PROCESS MANAGER", ...args);
     }
 
 }

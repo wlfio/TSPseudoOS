@@ -32,7 +32,7 @@ type AppOptsMap = { [s: string]: string };
 
 interface ILibStd {
     out(data: any): void;
-    inEvent(cb: Function): void;
+    inEvent(cb: (msg: IStdInMsg) => void): void;
     prompt(text: string): void;
     in(pid: number, data: any, source?: number | string): void;
 }
@@ -47,6 +47,7 @@ interface ILibProcess {
     startEvent(callback: Function): void;
     msgEvent(callback: Function): void;
     endEvent(callback: Function): void;
+    selfEvent(callback: Function): void;
     msg(pid: number, msg: any): Promise<any>;
     end(): void;
     crash(error: any): void;
@@ -55,6 +56,8 @@ interface ILibProcess {
     kill(pid: number): Promise<any>;
     list(): Promise<any>;
     self(): Promise<any>;
+    startAndAwaitOutput(exec: string, params: string[]): Promise<any>;
+    changeWorkingDir(path: string, pid?: number): Promise<any>,
 }
 
 interface ILibUtil {

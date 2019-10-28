@@ -10,8 +10,8 @@ declare var PROCESS: IProcess;
 const bash: Function = () => {
 
     let bashProcess: IProcess;
-    let user: string = "";
-    let path: string = "";
+    // let user: string = "";
+    // let path: string = "";
     let host: string = window.location.origin.split("://")[1].split(":")[0] || "[MISSING HOST]";
     let activeProcessID: number = -1;
     let activeOutputed: boolean = false;
@@ -21,8 +21,6 @@ const bash: Function = () => {
 
     let history: string[] = [];
     let historyPosition: number = 0;
-
-    const identifier: Function = (): string => bashProcess.exec + "[" + bashProcess.id + "]";
 
     const showHistory: Function = (pos: number): void => {
         historyPosition = pos;
@@ -55,11 +53,11 @@ const bash: Function = () => {
         OS.Std.out(
             (newLine ? "\n" : "")
             +
-            CMD.Colourize(user + "@" + host, CMD.Colours.green)
+            CMD.Colourize(bashProcess.identity.user + "@" + host, CMD.Colours.green)
             +
             CMD.Colourize(":", CMD.Colours.white)
             +
-            CMD.Colourize(path.replace("/home/" + user, "~"), CMD.Colours.blue)
+            CMD.Colourize(bashProcess.identity.workingDir.replace("/home/" + bashProcess.identity.user, "~"), CMD.Colours.blue)
             +
             CMD.Colourize("$ ", CMD.Colours.white)
         );
@@ -69,10 +67,13 @@ const bash: Function = () => {
     //     printPrompt();
     // };
 
+    const splitUserInput: Function = (text: string): string[] => {
+        const parts = text.match(/(".*?"|[^" \s]+)(?=\s* |\s*$)/g) || [];
+        return parts.map(s => s.trim());
+    }
+
     const start: Function = (process: IProcess) => {
         bashProcess = process;
-        user = process.identity.user;
-        path = process.identity.workingDir;
         OS.FS.read(bashHistoryFile)
             .then((content: string) => {
                 history = content.split("\n")
@@ -94,7 +95,7 @@ const bash: Function = () => {
             activeOutputed = true;
         }
         OS.Std.out(output);
-        return Promise.resolve();
+        return Promise.resolve("asd");
     };
 
     const ctrlCode: Function = (type: string): void => {
@@ -107,6 +108,11 @@ const bash: Function = () => {
         }
     };
 
+    const tabComplete: Function = async (text: string) => {
+        const parts = splitUserInput(text);
+        console.log(1, parts.join(">"));
+    }
+
     const specialCode: Function = (code: string): void => {
         const parts: string[] = code.split("§§§").filter(s => s.length > 0);
         switch (parts[0].toLowerCase()) {
@@ -116,14 +122,21 @@ const bash: Function = () => {
             case "dir":
                 showHistory(parseInt(parts[1], 10) + historyPosition);
                 break;
+            case "tab":
+                tabComplete(parts[1]);
+                break;
             default:
                 console.log("SPECIAL CODE", parts);
                 break;
         }
     };
 
-    const stdIn: Function = (data: IStdInMsg) => {
-        console.log("STD:IN", identifier(), data);
+    const selfUpdate: Function = (data: IProcess) => {
+        console.log("UPDATE SELF", data);
+        bashProcess = data;
+    };
+
+    const stdIn: (msg: IStdInMsg) => void = async (data: IStdInMsg) => {
         if (data.from === "user") {
             if (typeof data.data === "string") {
                 if (data.data.startsWith("§§§")) {
@@ -138,35 +151,34 @@ const bash: Function = () => {
                         OS.Process.end();
                         return;
                     }
-                    const parts: string[] = data.data.split(" ").map(s => s.trim());
+                    const parts: string[] = splitUserInput(data.data);
                     const exec: string = parts.shift() || "";
-                    OS.Process.start(exec, parts)
-                        .then((proc: IProcess) => {
-                            activeOutputed = false;
-                            subProcs[proc.id] = proc;
-                            activeProcessID = proc.id;
-                        })
-                        .catch((e: any) => {
-                            console.log("EXEC ERROR", e);
-                            try {
-                                if (e[1] === "FS Error" && e[3] === "Not found") {
-                                    OS.Std.out(exec + ": command not found");
-                                } else {
-                                    OS.Std.out(e[1]);
-                                }
-                            } catch (er) {
-                                OS.Std.out(["BASH LAUNCH ERROR", er.message]);
+                    try {
+                        const proc = await OS.Process.start(exec, parts);
+                        activeOutputed = false;
+                        subProcs[proc.id] = proc;
+                        activeProcessID = proc.id;
+                    } catch (e) {
+                        console.log("EXEC ERROR", e);
+                        try {
+                            if (e[1] === "FS Error" && e[3] === "Not found") {
+                                OS.Std.out(exec + ": command not found");
+                            } else {
+                                OS.Std.out(e[1]);
                             }
-                            printPrompt(true);
-                        });
+                        } catch (er) {
+                            OS.Std.out(["BASH LAUNCH ERROR", er.message]);
+                        }
+                        printPrompt(true);
+                    }
                     newHistory(data.data);
                 }
             }
         } else {
-            resolveAppIn(data)
-                .then(() => {
-                    //printPrompt(true);
-                });
+            const resolve = await resolveAppIn(data);
+            if (typeof resolve !== "string") {
+                console.log(resolve);
+            }
         }
     };
     const end: Function = (pid: number) => {
@@ -180,6 +192,7 @@ const bash: Function = () => {
         }
     };
 
+    OS.Process.selfEvent(selfUpdate);
     OS.Process.endEvent(end);
     OS.Std.inEvent(stdIn);
     start(PROCESS);

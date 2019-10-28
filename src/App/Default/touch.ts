@@ -8,15 +8,23 @@ const touch: Function = () => {
 
     class Touch {
         options: AppOpts = {
-
+            verbose: false,
         };
         optMap: AppOptsMap = {
-
+            v: "verbose",
         }
         constructor(params: string[]) {
-            OS.Util.loadArgs(params, this.options, this.optMap)
-                .then((paths: string[]) => this.run(paths))
-                .catch(e => this.error(e));
+            this.loadArgs(params);
+        }
+        firstOut: boolean = true;
+
+        async loadArgs(params: string[]) {
+            try {
+                const paths = await OS.Util.loadArgs(params, this.options, this.optMap);
+                this.run(paths);
+            } catch (e) {
+                this.error(e);
+            }
         }
 
         error(e: any): void {
@@ -26,9 +34,16 @@ const touch: Function = () => {
         async run(paths: string[]) {
             for (let i: number = 0; i < paths.length; i++) {
                 const out = await OS.FS.touch(paths[i]);
-                console.log(out);
+                this.printOutput(out);
             }
             OS.Process.end();
+        }
+
+        printOutput(out: any): void {
+            if (this.options.verbose) {
+                OS.Std.out((this.firstOut ? "" : "\n") + "created '" + out[0] + "'");
+                this.firstOut = false;
+            }
         }
     }
 

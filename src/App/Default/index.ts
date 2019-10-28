@@ -3,6 +3,8 @@ import bash from "./bash";
 import mkdir from "./mkdir";
 import cat from "./cat";
 import touch from "./touch";
+import rm from "./rm";
+import cd from "./cd";
 
 
 export const DefaultApps: { [s: string]: Function } = {
@@ -11,4 +13,6 @@ export const DefaultApps: { [s: string]: Function } = {
     mkdir,
     cat,
     touch,
+    rm,
+    cd,
 };

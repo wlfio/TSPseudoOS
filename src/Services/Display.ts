@@ -5,7 +5,14 @@ interface IQueuedDisplayItem {
     over: number;
 }
 
-export default class Display {
+export interface IDisplay {
+    init(pm: ProcessManager): void;
+    setText(text: string): void;
+    output(data: any, over?: number, newLine?: boolean): void;
+    info(): Promise<any>;
+}
+
+export default class Display implements IDisplay {
     display: HTMLDivElement;
     input: HTMLSpanElement;
 
@@ -16,6 +23,10 @@ export default class Display {
     constructor() {
         this.display = document.createElement("div");
         this.input = document.createElement("span");
+    }
+
+    info(): Promise<any> {
+        return Promise.resolve({});
     }
 
     init(processManager: ProcessManager): void {
@@ -36,6 +47,8 @@ export default class Display {
                 if (!ev.repeat) {
                     this.enterText();
                 }
+            } else if (ev.key === "Tab") {
+                this.tabKey();
             } else {
                 return;
             }
@@ -155,6 +168,21 @@ export default class Display {
 
     public setText(text: string): void {
         this.input.textContent = text;
+        const range = document.createRange() || new Range();
+        var sel: Selection = window.getSelection() || new Selection();
+        const childs = this.input.childNodes;
+        console.log("DISPLAY", childs[childs.length - 1]);
+        range.setStart(childs[childs.length - 1], this.input.textContent.length);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        this.input.focus();
+        // const range = document.createRange();//Create a range (a range is a like the selection but invisible)
+        // range.selectNodeContents(contentEditableElement);//Select the entire contents of the element with the range
+        // range.collapse(false);//collapse the range to the end point. false means collapse to end rather than the start
+        // selection = window.getSelection();//get the selection object (allows you to change selection)
+        // selection.removeAllRanges();//remove any selections already made
+        // selection.addRange(range);
     }
 
     private enterText(): void {
@@ -174,5 +202,9 @@ export default class Display {
         if (this.processManager !== null) {
             this.processManager.stdIn("user", text);
         }
+    }
+
+    private tabKey() {
+        this.specialUserInput("tab", this.input.textContent || "");
     }
 }
