@@ -104,6 +104,7 @@ const startAndAwait: Function = (exec: string, params: string[]) => {
 const awaitIn: (msg: IStdInMsg) => void = (msg: IStdInMsg): void => {
     if (awaitProcs.hasOwnProperty(msg.from) && typeof msg.from === "number") {
         awaitProcs[msg.from].resolve(msg);
+        delete awaitProcs[msg.from];
     }
 };
 
@@ -117,6 +118,9 @@ const libJSPseudoOS: ILibOS = {
         del: (path: string) => request(["FS", "del"], path),
         resolve: (paths: string[]) => request(["FS", "resolve"], paths),
         append: (path: string, content: string) => request(["FS", "append"], { path: path, content: content }),
+        fileExists: (path) => request(["FS", "fileExists"], path),
+        dirExists: (path) => request(["FS", "dirExists"], path),
+        delDir: (path) => request(["FS", "delDir"], path),
     },
     Std: {
         out: (data: any) => msg(["Std", "out"], data),
@@ -143,6 +147,12 @@ const libJSPseudoOS: ILibOS = {
         self: () => request(["Process", "self"]),
         startAndAwaitOutput: (exec, params) => startAndAwait(exec, params),
         changeWorkingDir: (path, pid) => request(["Process", "changeWorkingDir"], { path, pid }),
+    },
+    Remote: {
+        connect: (address) => request(["Remote", "connect"], address),
+        disconnect: (cid) => request(["Remote", "disconnect"], cid),
+        in: (cid, data, source) => msg(["Remote", "in"], { id: cid, data: data, source: source }),
+        outEvent: (cb) => hookEvent(["Remote", "out"], cb),
     },
     Util: Util,
 };

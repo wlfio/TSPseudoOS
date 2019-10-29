@@ -69,7 +69,13 @@ const bash: Function = () => {
 
     const splitUserInput: Function = (text: string): string[] => {
         const parts = text.match(/(".*?"|[^" \s]+)(?=\s* |\s*$)/g) || [];
-        return parts.map(s => s.trim());
+        return parts.map(s => {
+            s = s.trim();
+            if (s.charAt(0) === '"' && s.charAt(s.length - 1) === '"') {
+                s = s.slice(1, s.length - 1);
+            }
+            return s;
+        });
     }
 
     const start: Function = (process: IProcess) => {
@@ -192,10 +198,15 @@ const bash: Function = () => {
         }
     };
 
+    // const contentLoad: () => void = (): void => {
+    //     const body: HTMLBodyElement | null = document.querySelector("body");
+    // };
+
     OS.Process.selfEvent(selfUpdate);
     OS.Process.endEvent(end);
     OS.Std.inEvent(stdIn);
     start(PROCESS);
+    // window.addEventListener("DOMContentLoaded", contentLoad);
 };
 
 export default bash;

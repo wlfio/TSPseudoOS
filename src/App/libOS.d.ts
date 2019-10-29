@@ -13,6 +13,7 @@ export interface ILibOS {
     Out: ILibOut;
     Process: ILibProcess;
     Util: ILibUtil;
+    Remote: ILibRemote;
 }
 
 export interface IAppMessageType {
@@ -68,12 +69,22 @@ interface ILibUtil {
 interface ILibFS {
     read(path: string): Promise<string>;
     write(path: string, content: string): Promise<string[]>;
-    list(path: string): Promise<Array<IFSListEntry>>;
+    list(path: string): Promise<IFSListEntry[]>;
     mkdir(path: string): Promise<boolean>;
     touch(path: string): Promise<string[]>;
     del(path: string): Promise<string>;
     resolve(paths: string[]): Promise<string[]>;
     append(path: string, content: string): Promise<string[]>;
+    fileExists(path: string): Promise<boolean>;
+    dirExists(path: string): Promise<boolean>;
+    delDir(path: string): Promise<any>;
+}
+
+interface ILibRemote {
+    connect(address: string): Promise<number>;
+    disconnect(cid: number): Promise<boolean>;
+    in(cid: number, data: any, source?: number | string): void;
+    outEvent(callback: Function): void;
 }
 
 interface IDisplayItem {

@@ -1,5 +1,5 @@
 import { IFSListEntry } from "../../Services/FileSystem";
-import { ILibOS } from "../libOS";
+import { ILibOS, AppOpts, AppOptsMap } from "../libOS";
 import { ILibCMD } from "../../Services/Cmd";
 import { IProcess } from "../../Struct/Process";
 
@@ -8,30 +8,38 @@ declare var OS: ILibOS;
 declare var PROCESS: IProcess;
 
 const ls: Function = (): void => {
-    const opts: { all: boolean; human: boolean; long: boolean; "no-group": boolean } = {
+    const opts: AppOpts = {
         all: false,
         human: false,
         long: false,
         "no-group": false,
+        raw: false,
     };
 
     let count: number;
     let done: number = 0;
 
-    const argMap: { [s: string]: string } = {
+    const argMap: AppOptsMap = {
         a: "all",
         h: "human",
         l: "long",
         G: "no-group",
     };
 
-    const colourFileName: Function = (entry: IFSListEntry): string => {
+    const formatFileName: Function = (entry: IFSListEntry): string => {
+        let name: string = entry.name;
+        if (opts.raw) {
+            return name;
+        }
+        if (name.indexOf(" ") >= 0) {
+            name = "'" + name + "'"
+        }
         let fore: string = CMD.Colours.white;
         let back: string = CMD.Colours.black;
         if (!entry.file) {
             fore = CMD.Colours.blue;
         }
-        return CMD.Colourize(entry.name, fore, back);
+        return CMD.Colourize(name, fore, back);
     };
 
     const longOutputEntry: Function = (entry: IFSListEntry): any[] => {
@@ -40,7 +48,7 @@ const ls: Function = (): void => {
             user: entry.user,
             group: entry.group,
             size: entry.size,
-            name: colourFileName(entry),
+            name: formatFileName(entry),
         };
         if (opts["no-group"]) {
             delete out.group;
@@ -57,7 +65,7 @@ const ls: Function = (): void => {
         return arr;
     };
 
-    const shortOutput: Function = (data: Array<IFSListEntry>): string[] => data.map(e => colourFileName(e));
+    const shortOutput: Function = (data: Array<IFSListEntry>): string[] => data.map(e => formatFileName(e));
 
     const output: Function = (path: string, data: Array<IFSListEntry>) => {
         if (!opts.all) {
@@ -90,17 +98,18 @@ const ls: Function = (): void => {
             .catch((e: any) => error(e));
     };
 
-    const start: Function = (data: string[]): void => {
-        OS.Util.loadArgs(data, opts, argMap)
-            .then((data) => {
-                count = data.length;
-                if (data.length < 1) {
-                    data = [""];
-                    count = 1;
-                }
-                data.map(s => list(s));
-            })
-            .catch(e => error(e));
+    const start: Function = async (data: string[]) => {
+        try {
+            const paths = await OS.Util.loadArgs(data, opts, argMap);
+            count = paths.length;
+            if (count < 1) {
+                data = [""];
+                count = 1;
+            }
+            data.map(s => list(s));
+        } catch (e) {
+            error(e);
+        }
 
     };
     start(PROCESS.params);

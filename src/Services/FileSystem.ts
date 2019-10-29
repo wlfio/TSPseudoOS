@@ -175,9 +175,15 @@ const dirExistsCheck: Function = (path: string) => {
     }
 };
 
-const fileExists: Function = (path: string): boolean => {
+const doFileExists: Function = (path: string): boolean => {
     return localStorage.getItem(filePath(path)) !== null;
 };
+
+export const fileExists: Function = (path: string, identC: IIdentityContainer) => {
+    const identity: IIdentity = identC.getIdentity();
+    path = resolvePath(path, identity);
+    return Promise.resolve(doFileExists(path));
+}
 
 const fileDirExistsCheck: Function = (path: string): void => {
     path = getFileDir(path);
@@ -186,15 +192,21 @@ const fileDirExistsCheck: Function = (path: string): void => {
 
 
 const fileExistsCheck: Function = (path: string) => {
-    if (!fileExists(path)) {
+    if (!doFileExists(path)) {
         throw new Error(["Access Error", "Cannot access '" + path + "': No such file", path].join(" : "));
     }
 };
 
 const fileNotExistsCheck: Function = (path: string) => {
-    if (fileExists(path)) {
+    if (doFileExists(path)) {
         throw new Error(["Access Error", "Path exists", path].join(" : "));
     }
+};
+
+export const dirExists: Function = (path: string, identitC: IIdentityContainer) => {
+    const identity: IIdentity = identitC.getIdentity();
+    path = resolvePath(path, identity);
+    return Promise.resolve(isDir(path));
 };
 
 const resolveWorkingPath: Function = (path: string, working: string): string => {
@@ -322,7 +334,7 @@ export const write: Function = (path: string, content: string, identitC: IIdenti
     const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
-        const exists: boolean = fileExists(path);
+        const exists: boolean = doFileExists(path);
         if (exists) {
             hasPermissionCheck(path, permBitWrit, identity);
         } else {
@@ -487,7 +499,7 @@ export const getExec: Function = (exec: string, identitC: IIdentityContainer): P
         const paths: string[] = resolveExecPaths(exec, identity);
         for (let i: number = 0; i < paths.length; i++) {
             const path: string = paths[i];
-            if (fileExists(path)) {
+            if (doFileExists(path)) {
                 if (hasPermission(path, permBitExec, identity)) {
                     return Promise.resolve(path);
                 }
@@ -528,4 +540,6 @@ export default {
     chown,
     resolveWorkingPaths,
     append,
+    dirExists,
+    fileExists,
 };

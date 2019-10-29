@@ -9,9 +9,11 @@ const rm: Function = () => {
     class RM {
         options: AppOpts = {
             verbose: false,
+            recursive: false,
         };
         optMap: AppOptsMap = {
             v: "verbose",
+            r: "recursive",
         }
         constructor(params: string[]) {
             this.loadArgs(params);
@@ -33,10 +35,22 @@ const rm: Function = () => {
 
         async run(paths: string[]) {
             try {
+                paths = await OS.FS.resolve(paths);
                 for (let i: number = 0; i < paths.length; i++) {
+                    const path = paths[i];
+                    const dir = await OS.FS.dirExists(path);
+                    let out;
+                    if (dir) {
+                        if (!this.options.recursive) {
+                            this.printDirError(path);
+                        } else {
+                            out = await OS.FS.delDir(path);
+                        }
+                    } else {
+                        out = await OS.FS.del(path);
+                    }
                     //const ls = await OS.FS.list(paths[i]);
                     //console.log(ls);
-                    const out = await OS.FS.del(paths[i]);
                     this.printOutput(out);
                 }
                 OS.Process.end();
@@ -47,9 +61,17 @@ const rm: Function = () => {
 
         printOutput(out: any): void {
             if (this.options.verbose) {
-                OS.Std.out((this.firstOut ? "" : "\n") + "deleted '" + out[0] + "'");
-                this.firstOut = false;
+                this.output("deleted '" + out[0] + "'");
             }
+        }
+
+        printDirError(path: string): void {
+            this.output("cannot remove '" + path + "' it's a directory");
+        }
+
+        output(text: string) {
+            OS.Std.out((this.firstOut ? "" : "\n") + "rm: " + text);
+            this.firstOut = false;
         }
     }
 

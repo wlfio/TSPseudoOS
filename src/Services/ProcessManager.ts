@@ -41,6 +41,9 @@ export default class ProcessManager {
             touch: (process: Process, path: string) => FS.touch(path, process),
             read: (process: Process, path: string) => FS.read(path, process),
             del: (process: Process, path: string) => FS.del(path, process),
+            dirExists: (process: Process, path: string) => FS.dirExists(path, process),
+            fileExists: (process: Process, path: string) => FS.fileExists(path, process),
+            delDir: (process: Process, path: string) => FS.delDir(path, process),
         },
         Process: {
             end: (process: Process) => process.kill(),
@@ -66,6 +69,11 @@ export default class ProcessManager {
         },
         Display: {
             info: () => this.display !== null ? this.display.info() : Promise.reject(new Error("PM Error : missing display : ...")),
+        },
+        Remote: {
+            connect: (process: Process, address: string) => this.log(process.identifier(), ["Remote", "connect"], address),
+            disconnect: (process: Process, id: number) => this.log(process.identifier(), ["Remote", "disconnect"], id),
+            in: (process: Process, data: any) => this.log(process.identifier(), ["Remote", "stdIn"], data),
         }
     };
 
