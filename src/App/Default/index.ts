@@ -5,7 +5,7 @@ import cat from "./cat";
 import touch from "./touch";
 import rm from "./rm";
 import cd from "./cd";
-
+import tail from "./tail";
 
 export const DefaultApps: { [s: string]: Function } = {
     ls,
@@ -15,4 +15,5 @@ export const DefaultApps: { [s: string]: Function } = {
     touch,
     rm,
     cd,
+    tail,
 };
