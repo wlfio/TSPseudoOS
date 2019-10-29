@@ -100,13 +100,14 @@ const ls: Function = (): void => {
 
     const start: Function = async (data: string[]) => {
         try {
-            const paths = await OS.Util.loadArgs(data, opts, argMap);
+            let paths = await OS.Util.loadArgs(data, opts, argMap);
             count = paths.length;
             if (count < 1) {
-                data = [""];
+                paths = [""];
                 count = 1;
             }
-            data.map(s => list(s));
+            console.log(paths);
+            paths.map(s => list(s));
         } catch (e) {
             error(e);
         }

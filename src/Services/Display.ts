@@ -49,6 +49,8 @@ export default class Display implements IDisplay {
                 }
             } else if (ev.key === "Tab") {
                 this.tabKey();
+                console.log("TAB KEY");
+                ev.preventDefault();
             } else {
                 return;
             }
@@ -163,6 +165,7 @@ export default class Display implements IDisplay {
     }
 
     private controlKey(key: string): void {
+        this.inputOutput(false);
         this.specialUserInput("CTRL", key);
     }
 
@@ -172,7 +175,11 @@ export default class Display implements IDisplay {
         var sel: Selection = window.getSelection() || new Selection();
         const childs = this.input.childNodes;
         console.log("DISPLAY", childs[childs.length - 1]);
-        range.setStart(childs[childs.length - 1], this.input.textContent.length);
+        if (text.length > 0) {
+            range.setStart(childs[childs.length - 1], this.input.textContent.length);
+        } else {
+            range.setStart(this.input, this.input.textContent.length);
+        }
         range.collapse(true);
         sel.removeAllRanges();
         sel.addRange(range);
@@ -186,12 +193,20 @@ export default class Display implements IDisplay {
     }
 
     private enterText(): void {
-        const text: string = this.input.textContent || "";
+        const text: string = this.inputOutput();
         if (text.length > 0) {
-            this.output(text, 0, true);
             this.userInput(text);
             this.setText("");
         }
+    }
+
+    private inputOutput(newLine?: boolean): string {
+        newLine = newLine !== false;
+        const text: string = this.input.textContent || "";
+        if (text.length > 0) {
+            this.output(text, 0, newLine);
+        }
+        return text;
     }
 
     private specialUserInput(type: string, text: string): void {

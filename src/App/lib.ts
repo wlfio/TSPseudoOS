@@ -9,6 +9,7 @@ declare var PROCESS: IProcess;
 
 var ogLog = console.log;
 console.log = (...args: any[]) => {
+    console.trace();
     ogLog(PROCESS.exec + "[" + PROCESS.id + "]", ...args);
 }
 
@@ -33,6 +34,11 @@ const msg: Function = (typea: string[], data?: any, id?: string) => {
 const fireHooks: Function = (type: IAppMessageType, data?: any, id?: string) => {
     if (typeof type !== "object") { return; }
     const event: string = type.service + ":" + type.func;
+    if (event === "Std:in") {
+        if (awaitIn(data)) {
+            return;
+        }
+    }
     if (hooks.hasOwnProperty(event)) {
         const wantsPromise: boolean = (typeof id === "string" && id.length > 0);
         hooks[event].forEach(hook => {
@@ -101,11 +107,13 @@ const startAndAwait: Function = (exec: string, params: string[]) => {
     });
 };
 
-const awaitIn: (msg: IStdInMsg) => void = (msg: IStdInMsg): void => {
+const awaitIn: Function = (msg: IStdInMsg): boolean => {
     if (awaitProcs.hasOwnProperty(msg.from) && typeof msg.from === "number") {
         awaitProcs[msg.from].resolve(msg);
         delete awaitProcs[msg.from];
+        return true;
     }
+    return false;
 };
 
 const libJSPseudoOS: ILibOS = {
@@ -163,7 +171,7 @@ window.OS = libJSPseudoOS;
 window.CMD = CMD;
 
 
-OS.Std.inEvent(awaitIn);
+//OS.Std.inEvent(awaitIn);
 
 
 document.addEventListener("DOMContentLoaded", () => {

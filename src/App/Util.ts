@@ -8,7 +8,7 @@ export const Util: ILibUtil = {
             if (arg.startsWith("--") && arg.length > 2) {
                 arg = arg.slice(2);
                 if (opts.hasOwnProperty(arg)) {
-                    if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
+                    if (i < args.length - 1 && !args[i + 1].startsWith("-") && typeof opts[arg] !== "boolean") {
                         i++;
                         opts[arg] = args[i];
                     } else {

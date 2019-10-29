@@ -110,13 +110,42 @@ const bash: Function = () => {
             case "c":
                 OS.Std.out("^C");
                 printPrompt(true);
+                OS.Std.prompt("");
                 break;
         }
     };
 
     const tabComplete: Function = async (text: string) => {
         const parts = splitUserInput(text);
-        console.log(1, parts.join(">"));
+        let prompt: any = null
+        if (parts.length === 1) {
+
+        } else {
+            const part = parts[parts.length - 1];
+            const dirs = part.split("/");
+            const dir = dirs.slice(0, dirs.length - 1).join("/");
+            const ls = await OS.Process.startAndAwaitOutput("ls", ["--raw", dir]);
+            const opts = ls.data;
+            const t = dirs[dirs.length - 1];
+            console.log({ text, parts, dirs, dir, t, opts });
+            const result = opts.filter((e: string) => e.startsWith(t));
+            if (result.length === 1) {
+                dirs[dirs.length - 1] = result[0];
+                const d = dirs.join("/");
+                console.log(d);
+                const isDir = await OS.FS.dirExists(d);
+                parts[parts.length - 1] = d + (isDir ? "/" : "");
+            } else {
+                prompt = opts;
+            }
+        }
+        if (prompt !== null) {
+            OS.Std.out(text + "\n");
+            OS.Std.out(prompt);
+            printPrompt(true);
+        }
+        OS.Std.prompt(parts.map((s: string) => s.indexOf(" ") >= 0 ? '"' + s + '"' : s).join(" "));
+
     }
 
     const specialCode: Function = (code: string): void => {
