@@ -30,6 +30,7 @@ export interface IAppMessage {
 
 type AppOpts = { [s: string]: any };
 type AppOptsMap = { [s: string]: string };
+type FunctionSignature = { service: string, func: any };
 
 interface ILibStd {
     out(data: any): void;

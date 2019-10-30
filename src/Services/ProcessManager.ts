@@ -15,7 +15,12 @@ interface IPendingApp {
     reject: Function;
 }
 
-export default class ProcessManager {
+export interface IProcessManager {
+    stdIn(source: string | number, data: any): void;
+    startProcess(exec: string, params: string[], identity: Identity | null, parent?: any): Promise<any>;
+}
+
+export default class ProcessManager implements IProcessManager {
     display: IDisplay | null = null;
     processes: { [s: number]: Process } = {};
     pids: number = 0;

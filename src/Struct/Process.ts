@@ -117,10 +117,12 @@ export default class Process implements IProcess, IIdentityContainer {
         return this.parentInCB !== null;
     }
 
-    intoParent(data: any): void {
+    intoParent(data: any): Promise<any> {
         if (this.parentInCB !== null) {
             this.parentInCB(data);
+            return Promise.resolve();
         }
+        return Promise.reject();
     }
 
     getChild(pid: number): Process | null {
@@ -131,20 +133,23 @@ export default class Process implements IProcess, IIdentityContainer {
         return this.exec + "[" + this.id + "]";
     }
 
-    intoChild(pid: number, data: any, source?: string | number): void {
+    intoChild(pid: number, data: any, source?: string | number): Promise<any> {
         const child: Process | null = this.getChild(pid);
         if (child !== null) {
             console.log(this.identifier(), " > ", child.identifier(), data, source);
             child.stdIn(source || this.id, data);
+            return Promise.resolve();
         }
+        return Promise.reject();
     }
 
-    set(prop: string, value: any): void {
+    set(prop: string, value: any): Promise<any> {
         switch (prop) {
             case "workingDir":
                 this.identity.workingDir = value;
         }
         this.updateSelf();
+        return Promise.resolve();
     }
 
     updateSelf(): void {
@@ -157,6 +162,10 @@ export default class Process implements IProcess, IIdentityContainer {
         }
         this.bin.push(Process.libJS || "");
         return this;
+    }
+
+    changeWorkingDir(path: string): Promise<any> {
+
     }
 
     loadBin(code: string): Process {
@@ -222,11 +231,11 @@ export default class Process implements IProcess, IIdentityContainer {
         delete this.children[process.id];
     }
 
-    kill(): void {
+    kill(): Promise<any> {
         this.dead = true;
-        if (this.container === null) { return; }
+        if (this.container === null) { return Promise.reject(); }
         const parent: Node | null = this.container.parentNode;
-        if (parent === null) { return; }
+        if (parent === null) { return Promise.reject(); }
         parent.removeChild(this.container);
 
         if (this.parentEndCB !== null) {
@@ -242,5 +251,6 @@ export default class Process implements IProcess, IIdentityContainer {
         }
         this.htmlUrl = "";
         this.paramsUrl = "";
+        return Promise.resolve();
     }
 }

@@ -1,4 +1,4 @@
-import ProcessManager from "./ProcessManager";
+import { IProcessManager } from "./ProcessManager";
 
 interface IQueuedDisplayItem {
     text: any[];
@@ -6,9 +6,9 @@ interface IQueuedDisplayItem {
 }
 
 export interface IDisplay {
-    init(pm: ProcessManager): void;
-    setText(text: string): void;
-    output(data: any, over?: number, newLine?: boolean): void;
+    init(pm: IProcessManager): void;
+    setText(text: string): Promise<any>;
+    output(data: any, over?: number, newLine?: boolean): Promise<any>;
     info(): Promise<any>;
 }
 
@@ -18,7 +18,7 @@ export default class Display implements IDisplay {
 
     queuedItems: IQueuedDisplayItem[] = [];
 
-    processManager: ProcessManager | null = null;
+    processManager: IProcessManager | null = null;
 
     constructor() {
         this.display = document.createElement("div");
@@ -29,7 +29,7 @@ export default class Display implements IDisplay {
         return Promise.resolve({});
     }
 
-    init(processManager: ProcessManager): void {
+    init(processManager: IProcessManager): void {
         this.processManager = processManager;
         this.createDisplay();
         document.addEventListener("keydown", () => {
@@ -120,7 +120,7 @@ export default class Display implements IDisplay {
         return "FAILED TO CONVERT FOR DISPLAY";
     }
 
-    output(data: any, over?: number, newLine?: boolean): void {
+    output(data: any, over?: number, newLine?: boolean): Promise<any> {
         newLine = newLine === true;
         let text: string = "";
         if (typeof data !== "string") {
@@ -133,6 +133,7 @@ export default class Display implements IDisplay {
             items.push(document.createElement("br"));
         }
         this.writeToDisplay(items, over);
+        return Promise.resolve();
     }
 
     prompt(show: boolean): void {
@@ -169,7 +170,7 @@ export default class Display implements IDisplay {
         this.specialUserInput("CTRL", key);
     }
 
-    public setText(text: string): void {
+    public setText(text: string): Promise<any> {
         this.input.textContent = text;
         const range = document.createRange() || new Range();
         var sel: Selection = window.getSelection() || new Selection();
@@ -184,6 +185,7 @@ export default class Display implements IDisplay {
         sel.removeAllRanges();
         sel.addRange(range);
         this.input.focus();
+        return Promise.resolve();
         // const range = document.createRange();//Create a range (a range is a like the selection but invisible)
         // range.selectNodeContents(contentEditableElement);//Select the entire contents of the element with the range
         // range.collapse(false);//collapse the range to the end point. false means collapse to end rather than the start
@@ -219,7 +221,7 @@ export default class Display implements IDisplay {
         }
     }
 
-    private tabKey() {
+    private tabKey(): void {
         this.specialUserInput("tab", this.input.textContent || "");
     }
 }
