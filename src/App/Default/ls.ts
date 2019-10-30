@@ -106,7 +106,6 @@ const ls: Function = (): void => {
                 paths = [""];
                 count = 1;
             }
-            console.log(paths);
             paths.map(s => list(s));
         } catch (e) {
             error(e);

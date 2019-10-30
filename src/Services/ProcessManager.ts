@@ -143,14 +143,22 @@ export default class ProcessManager {
                 FS.execRead(exec, identity)
                     .then((data: string[]) => {
                         const execPath: string = data[0];
-                        const code: string = data[1];
+                        const code: string = data[1].trim();
                         this.pids++;
 
                         const process: Process = new Process(this.pids, execPath, params, identity, parent);
 
                         process.loadLibJS(this.libJS || "");
-                        process.loadBin("(" + code + ")(PROCESS,OS);");
-
+                        if (code.startsWith("class Main")) {
+                            const wrapper = [
+                                "((proc,osLib)=>{\n",
+                                code,
+                                ";\nreturn new Main(proc,osLib);\n})(PROCESS,OS);"
+                            ];
+                            process.loadBin(wrapper.join(""));
+                        } else {
+                            process.loadBin("(" + code + ")(PROCESS,OS);");
+                        }
                         this.processes[this.pids] = process;
 
                         if (this.mainProcess === null) {

@@ -6,6 +6,8 @@ import touch from "./touch";
 import rm from "./rm";
 import cd from "./cd";
 import tail from "./tail";
+import head from "./head";
+import edit from "./edit";
 
 export const DefaultApps: { [s: string]: Function } = {
     ls,
@@ -16,4 +18,6 @@ export const DefaultApps: { [s: string]: Function } = {
     rm,
     cd,
     tail,
+    head,
+    edit,
 };
