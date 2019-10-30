@@ -149,7 +149,7 @@ export default class ProcessManager {
                         const process: Process = new Process(this.pids, execPath, params, identity, parent);
 
                         process.loadLibJS(this.libJS || "");
-                        process.loadBin("(" + code + ")();");
+                        process.loadBin("(" + code + ")(PROCESS,OS);");
 
                         this.processes[this.pids] = process;
 

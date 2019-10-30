@@ -1,10 +1,7 @@
 import { ILibOS, AppOpts, AppOptsMap } from "../libOS";
 import { IProcess } from "../../Struct/Process";
 
-declare var OS: ILibOS;
-declare var PROCESS: IProcess;
-
-const touch: Function = () => {
+const touch: Function = (process: IProcess, OS: ILibOS) => {
 
     class Touch {
         options: AppOpts = {
@@ -47,7 +44,7 @@ const touch: Function = () => {
         }
     }
 
-    new Touch(PROCESS.params);
+    new Touch(process.params);
 };
 
 export default touch;
