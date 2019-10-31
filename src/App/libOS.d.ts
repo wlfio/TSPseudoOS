@@ -1,4 +1,5 @@
 import { IFSListEntry } from "../Services/FileSystem";
+import { PromiseFunction } from "../Struct/Types";
 
 declare const OS: ILibOS;
 
@@ -10,7 +11,7 @@ export interface IStdInMsg {
 export interface ILibOS {
     FS: ILibFS;
     Std: ILibStd;
-    Out: ILibOut;
+    Display: ILibOut;
     Process: ILibProcess;
     Util: ILibUtil;
     Remote: ILibRemote;
@@ -32,34 +33,42 @@ type AppOpts = { [s: string]: any };
 type AppOptsMap = { [s: string]: string };
 type FunctionSignature = { service: string, func: any };
 
-interface ILibStd {
+export interface ILibStd {
+    event: ILibStdEvents;
     out(data: any): void;
-    inEvent(cb: (msg: IStdInMsg) => void): void;
-    prompt(text: string): void;
     in(pid: number, data: any, source?: number | string): void;
+}
+
+interface ILibStdEvents {
+    in(cb: (msg: IStdInMsg) => Promise<any>): void;
 }
 
 interface ILibOut {
     print(data: string | String[] | Array<string[]>, over?: number): void;
     printLn(data: string | String[] | Array<string[]>, over?: number): void;
+    prompt(text: string): void;
 }
 
-interface ILibProcess {
+export interface ILibProcess {
     //startEvent(callback: (data: string[]) => void): void;
-    startEvent(callback: Function): void;
-    msgEvent(callback: Function): void;
-    endEvent(callback: Function): void;
-    selfEvent(callback: Function): void;
+    event: ILibProcessEvents;
     msg(pid: number, msg: any): Promise<any>;
     end(): void;
     crash(error: any): void;
-    ready(): void;
+    //ready(): void;
     start(exec: string, params: string[]): Promise<any>;
     kill(pid: number): Promise<any>;
     list(): Promise<any>;
     self(): Promise<any>;
     startAndAwaitOutput(exec: string, params: string[]): Promise<any>;
     changeWorkingDir(path: string, pid?: number): Promise<any>,
+}
+
+interface ILibProcessEvents {
+    start(callback: PromiseFunction): void;
+    msg(callback: PromiseFunction): void;
+    end(callback: PromiseFunction): void;
+    self(callback: PromiseFunction): void;
 }
 
 interface ILibUtil {
