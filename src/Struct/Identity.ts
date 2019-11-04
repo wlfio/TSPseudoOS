@@ -1,24 +1,26 @@
-import FS from "../Services/FileSystem";
+import FS, { IFSListEntry } from "../Services/FileSystem";
 
-export interface IIdentity {
-    user: string;
-    groups: string[];
-    workingDir: string;
-    path: string[];
-    priveledged: boolean;
-    changeWorkingPath(path: string): Promise<boolean>;
-}
 
 export interface IIdentityContainer {
     getIdentity(): IIdentity;
 }
 
-export default class Identity implements IIdentity, IIdentityContainer {
+export interface IIdentity extends IIdentityContainer {
     user: string;
     groups: string[];
     workingDir: string;
-    path: string[];
     priveledged: boolean;
+    getEnv(name: string, fallback?: string): string | null;
+    setEnv(name: string, value: string | string[]): void;
+    changeWorkingPath(path: string): Promise<boolean>;
+}
+
+export default class Identity implements IIdentity {
+    user: string;
+    groups: string[];
+    workingDir: string;
+    priveledged: boolean;
+    env: { [s: string]: string } = {};
 
     constructor(user: string, groups: Array<String>, workingDir: string) {
         groups = groups || [];
@@ -30,10 +32,24 @@ export default class Identity implements IIdentity, IIdentityContainer {
             .map(e => e.toLowerCase());
         this.workingDir = workingDir;
         this.priveledged = this.user === "root";
-        this.path = ["/bin"];
+        this.setEnv("path", ["/bin"]);
     }
 
-    getIdentity(): Identity {
+    setEnv(name: string, value: string | string[]): void {
+        if (value instanceof Array) {
+            value = value.join(";");
+        }
+        this.env[name] = value;
+    }
+
+    getEnv(name: string, fallback?: string): string | null {
+        if (this.env.hasOwnProperty(name)) {
+            return this.env[name];
+        }
+        return fallback || null;
+    }
+
+    getIdentity(): IIdentity {
         return this.clone();
     }
 
@@ -41,13 +57,9 @@ export default class Identity implements IIdentity, IIdentityContainer {
         this.priveledged = priveleged;
     }
 
-    addToPath(path: string): void {
-        this.path = [...this.path, path].filter((e, i, a) => a.indexOf(e) === i);
-    }
-
     async changeWorkingPath(path: string): Promise<boolean> {
         try {
-            const exists = await FS.list(path, this);
+            const exists: IFSListEntry[] = await FS.list(path, this);
             if (exists instanceof Array) {
                 this.workingDir = path;
                 return Promise.resolve(true);
@@ -61,7 +73,9 @@ export default class Identity implements IIdentity, IIdentityContainer {
     clone(): Identity {
         const ident: Identity = new Identity(this.user + "", [...this.groups], this.workingDir + "");
         ident.setPriveledged(this.priveledged === true);
-        this.path.forEach(p => ident.addToPath(p + ""));
+        Object.entries(this.env).forEach((entry: [string, string]) => {
+            ident.setEnv(entry[0], entry[1]);
+        });
         return ident;
     }
 }

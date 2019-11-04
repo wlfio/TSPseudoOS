@@ -3,7 +3,7 @@ const path = require('path');
 module.exports = {
     entry: {
         os: './src/app.ts',
-        osLib: './src/App/lib.ts',
+        //        osLib: './src/App/lib.ts',
     },
     module: {
         rules: [

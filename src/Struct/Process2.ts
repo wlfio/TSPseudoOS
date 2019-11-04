@@ -1,16 +1,17 @@
 import { IDisplay } from "../Services/Display";
 import { IProcessManager } from "../Services/ProcessManager";
 import FS from "../Services/FileSystem";
-import Process, { IProcess } from "./Process";
+import { IProcess } from "./Process";
 import { FunctionSignature, IDisplayItem, ILibOS, ILibFS, ILibStd, ILibProcess, IStdInMsg } from "../App/libOS";
-import { OSApi, FunctionSet, PromiseHolder } from "./Types";
+import { OSApi, FunctionSet, PromiseHolder, AppMessage, AppMessageType } from "./Types";
 import Identity, { IIdentityContainer, IIdentity } from "./Identity";
 
 class OSLib implements ILibOS {
 
     private _call: (signature: FunctionSignature, data: any) => Promise<any>;
-    private hooks: { [s: string]: Function[] } = {};
+    private hooks: { [s: string]: Function } = {};
     private awaitProcs: { [s: number]: PromiseHolder } = {};
+    private responses: { [s: string]: PromiseHolder } = {};
 
     Std: ILibStd = {
         event: {
@@ -44,7 +45,7 @@ class OSLib implements ILibOS {
         self: () => this.call("Process", "self"),
         start: (exec: string, params: string[]) => this.call("Process", "start", { exec, params }),
         crash: (error: any) => this.call("Process", "crash", error),
-        changeWorkingDir: (path: string) => this.call("Process", "changeWorkingDir", path),
+        changeWorkingPath: (path: string) => this.call("Process", "changeWorkingPath", path),
         msg: (pid: number, msg: any) => this.call("Process", "msg", { pid, msg }),
         kill: (pid: number) => this.call("Process", "kill", pid),
         list: () => this.call("Process", "list"),
@@ -68,12 +69,9 @@ class OSLib implements ILibOS {
         return this._call({ service: service, func: func }, data);
     }
 
-    private hookEvent(service: string, func: string, cb: Function) {
+    private hookEvent(service: string, func: string, cb: Function): void {
         const event: string = service + ":" + func;
-        if (!this.hooks.hasOwnProperty(event)) {
-            this.hooks[event] = [];
-        }
-        this.hooks[event].push(cb);
+        this.hooks[event] = cb;
     }
 
     private startAndAwait(exec: string, params: string[]): Promise<any> {
@@ -89,15 +87,11 @@ class OSLib implements ILibOS {
         });
     }
 
-    message(signature: FunctionSignature, data: any): Promise<any> {
-        if (signature.service === "response") {
-
-        } else {
-            return this.fireHooks(signature, data);
-        }
+    fireEvent(signature: FunctionSignature, data: any): Promise<any> {
+        return this.fireHooks(signature, data);
     }
 
-    private awaitIn(msg: IStdInMsg) {
+    private awaitIn(msg: IStdInMsg): boolean {
         if (typeof msg.from === "number" && this.awaitProcs.hasOwnProperty(msg.from)) {
             this.awaitProcs[msg.from].resolve(msg);
             delete this.awaitProcs[msg.from];
@@ -107,20 +101,20 @@ class OSLib implements ILibOS {
     }
 
     private fireHooks(signature: FunctionSignature, data: any): Promise<any> {
-        const event = signature.service + ":" + signature.func;
+        const event: string = signature.service + ":" + signature.func;
         if (event === "Std:in") {
             if (this.awaitIn(data)) {
                 return Promise.resolve();
             }
         }
         if (this.hooks.hasOwnProperty(event)) {
-
+            return this.hooks[event](data);
         }
+        return Promise.reject("MISSING")
     }
 }
 
 export default class Process2 implements IProcess, IIdentityContainer {
-    display: IDisplay;
     manager: IProcessManager;
     lib: OSLib;
     code: string = "";
@@ -157,20 +151,17 @@ export default class Process2 implements IProcess, IIdentityContainer {
         },
         Process: {
             end: () => this.kill(),
-            setSelf: (data: { prop: string, value: any }) => process.set(data.prop, data.value),
+            setEnv: (data: { prop: string, value: any, pid?: number }) => this.setEnv(data.prop, data.value, data.pid || null),
             self: () => Promise.resolve(this.data()),
             start: (data: any) => this.manager.startProcess(data.exec, data.params, null, this),
             crash: (error: any) => { this.api.Std.out(error); return this.kill(); },
-            changeWorkingDir: (data: any) => this.changeWorkingDir(data),
+            changeWorkingPath: (data: any) => this.changeWorkingPath(data),
         },
         Display: {
-            // @ts-ignore
-            prompt: (text: string) => this.display.setText(text),
-            // @ts-ignore
-            print: (item: IDisplayItem) => this.display.output(item.data, item.over, false),
-            // @ts-ignore
-            printLn: (item: IDisplayItem) => this.display.output(item.data, item.over, true),
-            info: () => this.display !== null ? this.display.info() : Promise.reject(new Error("PM Error : missing display : ...")),
+            prompt: (text: string) => this.manager.getDisplay().setText(text),
+            print: (item: IDisplayItem) => this.manager.getDisplay().output(item.data, item.over, false),
+            printLn: (item: IDisplayItem) => this.manager.getDisplay().output(item.data, item.over, true),
+            info: () => this.manager.getDisplay().info(),
         }
     };
 
@@ -182,12 +173,14 @@ export default class Process2 implements IProcess, IIdentityContainer {
         }
     }
 
-    constructor(manager: IProcessManager, display: IDisplay, exec: string, pid: number, identitC: IIdentityContainer, parent?: Process2) {
+    constructor(manager: IProcessManager, exec: string, pid: number, params: string[], identitC: IIdentity, parent?: Process2) {
         this.manager = manager;
-        this.display = display;
+        //this.display = display;
         this.exec = exec;
         this.id = pid;
+        this.lib = new OSLib((signature: FunctionSignature, data: any) => this.call(signature, data));
         this.identity = identitC.getIdentity();
+        this.params = params;
         if (parent instanceof Process2) {
             this.parentID = parent.id;
             const cbs: [Function, Function] = parent.registerChild(this);
@@ -196,15 +189,42 @@ export default class Process2 implements IProcess, IIdentityContainer {
         }
     }
 
+    setEnv(prop: string, value: any, pid?: number): Promise<any> {
+        if (typeof pid === "number") {
+            if (pid === this.parentID || this.children.hasOwnProperty(pid)) {
+                return this.manager.setEnv(pid, prop, value);
+            } else {
+                return Promise.reject();
+            }
+        } else {
+            switch (prop) {
+                case "log":
+                    console.log("PROCESS2 SET", value);
+                    break;
+                case "workingPath":
+                case "workingDir":
+                    this.changeWorkingPath(value);
+                    break;
+                default:
+                    this.identity.setEnv(prop, value);
+                    break;
+            }
+            this.event(["Process", "self"], this.data());
+            return Promise.resolve();
+        }
+    }
+
     start(code: string): boolean {
         this.code = code;
-        const wrapper = [
+        const wrapper: string = [
             "((proc,osLib)=>{\n",
             this.code,
             ";\nreturn new Main(proc,osLib);\n})"
         ].join("");
-        this.lib = new OSLib((signature: FunctionSignature, data: any) => this.call(signature, data));
+
+        // tslint:disable: no-eval
         this.app = eval(wrapper)(this.data, this.lib);
+        // tslint:enable: no-eval
         return true;
     }
 
@@ -257,33 +277,21 @@ export default class Process2 implements IProcess, IIdentityContainer {
     }
 
     removeChild(process: Process2): void {
-        this.message(["Process", "end"], process.id);
+        this.event(["Process", "end"], process.id);
         delete this.children[process.id];
     }
 
 
     stdIn(source: number | string, data: any): void {
-        this.message(["Std", "in"], { from: source, data });
+        this.event(["Std", "in"], { from: source, data });
     }
 
-    changeWorkingDir(path: string): Promise<any> {
-
+    async changeWorkingPath(path: string): Promise<any> {
+        this.identity.changeWorkingPath(path);
     }
 
-    message(typea: string[], data: any, id?: string, error?: any): boolean {
-
-        if (window === null) { return false; }
-        const type: IAppMessageType = { service: typea[0], func: typea[1] };
-        const msg: IAppMessage = { type: type, data: data, id: id };
-        if (error instanceof Error) {
-            console.log("Error to process", this, error);
-            error = ["ERROR", ...error.message.split(" : ")];
-        }
-        if (typeof error !== "undefined") {
-            msg.error = error;
-        }
-        window.postMessage(msg, location.origin);
-        return true;
+    event(type: [string, string], data: any): Promise<any> {
+        return this.lib.fireEvent({ service: type[0], func: type[1] }, data);
     }
 
     kill(): Promise<any> {

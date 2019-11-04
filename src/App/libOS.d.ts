@@ -29,6 +29,16 @@ export interface IAppMessage {
     error?: any;
 }
 
+type AppMessageType = {
+    service: string;
+    func: string;
+}
+type AppMessage = {
+    type: AppMessageType;
+    data?: any;
+    id?: string;
+    error?: any;
+}
 type AppOpts = { [s: string]: any };
 type AppOptsMap = { [s: string]: string };
 type FunctionSignature = { service: string, func: any };
@@ -61,7 +71,7 @@ export interface ILibProcess {
     list(): Promise<any>;
     self(): Promise<any>;
     startAndAwaitOutput(exec: string, params: string[]): Promise<any>;
-    changeWorkingDir(path: string, pid?: number): Promise<any>,
+    changeWorkingPath(path: string, pid?: number): Promise<any>;
 }
 
 interface ILibProcessEvents {

@@ -12,6 +12,24 @@ export interface IDisplay {
     info(): Promise<any>;
 }
 
+export class StubDisplay implements IDisplay {
+    init(pm: IProcessManager): void {
+        console.log("STUB DISPLAY INIT", pm);
+    }
+    setText(text: string): Promise<any> {
+        console.log("STUB DISPLAY SET TEXT", text);
+        return Promise.resolve();
+    }
+    output(data: any, over?: number, newLine?: boolean): Promise<any> {
+        console.log("STUB DISPLAY OUTPUT", data, over, newLine);
+        return Promise.resolve();
+    }
+    info(): Promise<any> {
+        console.log("STUB DISPLAY INFO");
+        return Promise.resolve({});
+    }
+}
+
 export default class Display implements IDisplay {
     display: HTMLDivElement;
     input: HTMLSpanElement;

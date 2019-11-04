@@ -237,7 +237,7 @@ export const resolveWorkingPaths: Function = (paths: string[], identitC: IIdenti
 };
 
 const resolveExecPaths: Function = (exec: string, identity: IIdentity): string[] =>
-    [resolvePath(exec, identity), ...identity.path.map(p => resolveWorkingPath(exec, p))];
+    [resolvePath(exec, identity), ...identity.getEnv("path", "/bin").split(";").map(p => resolveWorkingPath(exec, p))];
 
 
 
@@ -464,7 +464,7 @@ const listEntry: Function = (entry: IFSListEntrySpawn): IFSListEntry => {
     };
 };
 
-export const list: Function = (path: string, identitC: IIdentityContainer): Promise<Array<IFSListEntry>> => {
+export const list: Function = (path: string, identitC: IIdentityContainer): Promise<IFSListEntry[]> => {
     const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
@@ -511,7 +511,7 @@ export const getExec: Function = (exec: string, identitC: IIdentityContainer): P
     }
 };
 
-export const execRead: Function = (exec: string, identitC: IIdentityContainer): Promise<string[]> => {
+export const execRead: Function = (exec: string, identitC: IIdentityContainer): Promise<[string, string]> => {
     const identity: IIdentity = identitC.getIdentity();
     return new Promise((resolve, reject) => {
         getExec(exec, identity)
