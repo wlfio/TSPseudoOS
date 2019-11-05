@@ -29,55 +29,6 @@ export default class ProcessManager implements IProcessManager {
 
     mainProcess: Process | null = null;
 
-    // constructor() {
-    // }
-
-    // OS: { [s: string]: { [s: string]: Function } } = {
-    //     FS: {
-    //         list: (process: Process, data: string) => FS.list(data, process),
-    //         mkdir: (process: Process, data: string) => FS.mkdir(data, process),
-    //         resolve: (process: Process, data: string[]) => FS.resolveWorkingPaths(data, process),
-    //         append: (process: Process, data: { path: string, content: string }) => FS.append(data.path, data.content, process),
-    //         write: (process: Process, data: { path: string, content: string }) => FS.write(data.path, data.content, process),
-    //         touch: (process: Process, path: string) => FS.touch(path, process),
-    //         read: (process: Process, path: string) => FS.read(path, process),
-    //         del: (process: Process, path: string) => FS.del(path, process),
-    //         dirExists: (process: Process, path: string) => FS.dirExists(path, process),
-    //         fileExists: (process: Process, path: string) => FS.fileExists(path, process),
-    //         delDir: (process: Process, path: string) => FS.delDir(path, process),
-    //     },
-    //     Process: {
-    //         end: (process: Process) => process.kill(),
-    //         setSelf: (process: Process, data: { prop: string, value: any }) => process.set(data.prop, data.value),
-    //         self: (process: Process) => Promise.resolve(process.data()),
-    //         start: (process: Process, data: any) => this.startProcess(data.exec, data.params, null, process),
-    //         crash: (process: Process, error: any) => { this.OS.Std.out(process, error); process.kill(); },
-    //         changeWorkingDir: (process: Process, data: any) => this.changeWorkingDir(data, process),
-    //     },
-    //     Std: {
-    //         out: (process: Process, data: any) =>
-    //             process.hasParent() ? process.intoParent(data) : this.OS.Out.print({ data: data, over: 0 }),
-    //         prompt: (process: Process, text: string) => {
-    //             if (this.mainProcess !== null && this.mainProcess.id === process.id && this.display !== null) {
-    //                 this.display.setText(text);
-    //             }
-    //         },
-    //         in: (process: Process, data: any) => process.intoChild(data.pid, data.data, data.source || null),
-    //     },
-    //     Out: {
-    //         print: (item: IDisplayItem) => this.output(item.data, item.over, false),
-    //         printLn: (item: IDisplayItem) => { console.log(item); return this.output(item.data, item.over, true); },
-    //     },
-    //     Display: {
-    //         info: () => this.display !== null ? this.display.info() : Promise.reject(new Error("PM Error : missing display : ...")),
-    //     },
-    //     Remote: {
-    //         connect: (process: Process, address: string) => this.log(process.identifier(), ["Remote", "connect"], address),
-    //         disconnect: (process: Process, id: number) => this.log(process.identifier(), ["Remote", "disconnect"], id),
-    //         in: (process: Process, data: any) => this.log(process.identifier(), ["Remote", "stdIn"], data),
-    //     }
-    // };
-
     setEnv(pid: number, name: string, value: string): Promise<any> {
         if (this.processes.hasOwnProperty(pid)) {
             this.processes[pid].setEnv(name, value);
@@ -105,7 +56,7 @@ export default class ProcessManager implements IProcessManager {
         }
     }
 
-    endProcess(pid: number) {
+    endProcess(pid: number): void {
         if (this.processes.hasOwnProperty(pid)) {
             delete this.processes[pid];
         }
