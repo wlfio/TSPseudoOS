@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
     display.output([
         ["Welcome to wlf.io TSPseudoOS v0.1 LTNS(Little To No Support)"],
         [""],
-        ["  * Try the command help to see what you can do"],
+        ["  * (TODO : D: )Try the command help to see what you can do"],
         [""],
         ["Last Login: Fri, 25 Oct 2019 18: 57: 47 GMT"],
     ], 0, true);
