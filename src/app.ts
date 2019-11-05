@@ -40,7 +40,7 @@ FS.mkdir("/home/guest", rootIdent)
 FS.mkdir("/home/root", rootIdent);
 
 Object.entries(DefaultApps).map((app: Array<any>) => {
-    FS.write("bin/" + app[0], app[1].toString(), rootIdent);
+    FS.write("bin/" + app[0], app[1].toString().replace("class{", "class Main{"), rootIdent);
     FS.chmod("bin/" + app[0], rootIdent, "755");
 });
 

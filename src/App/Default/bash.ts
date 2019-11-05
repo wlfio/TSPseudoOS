@@ -2,20 +2,20 @@ import { ILibOS, IStdInMsg } from "../libOS";
 import { IProcess } from "../../Struct/Process";
 
 export default class Main {
-    bashHistoryFile: string = "~/.bash_history";
+    private bashHistoryFile: string = "~/.bash_history";
 
-    bashProcess: IProcess;
+    private bashProcess: IProcess;
 
-    host: string = window.location.origin.split("://")[1].split(":")[0] || "[MISSING HOST]";
-    activeProcessID: number = -1;
-    activeOutputed: boolean = false;
+    private host: string = window.location.origin.split("://")[1].split(":")[0] || "[MISSING HOST]";
+    private activeProcessID: number = -1;
+    private activeOutputed: boolean = false;
 
-    subProcs: { [s: number]: IProcess } = {};
+    private subProcs: { [s: number]: IProcess } = {};
 
-    history: string[] = [];
-    historyPosition: number = 0;
+    private history: string[] = [];
+    private historyPosition: number = 0;
 
-    api: ILibOS;
+    private api: ILibOS;
 
     constructor(process: IProcess, OS: ILibOS) {
         this.bashProcess = process;
@@ -27,7 +27,7 @@ export default class Main {
     }
 
     setHistoryPosition(pos: number): void {
-        this.historyPosition = Math.min(Math.max(pos, 0), history.length);
+        this.historyPosition = Math.min(Math.max(pos, 0), this.history.length);
     }
 
     showHistory(pos: number): void {

@@ -193,6 +193,7 @@ const fileDirExistsCheck: Function = (path: string): void => {
 
 const fileExistsCheck: Function = (path: string) => {
     if (!doFileExists(path)) {
+        console.trace();
         throw new Error(["Access Error", "Cannot access '" + path + "': No such file", path].join(" : "));
     }
 };

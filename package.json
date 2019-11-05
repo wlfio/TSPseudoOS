@@ -8,7 +8,8 @@
     "dev": "webpack --mode development",
     "build": "webpack --mode production",
     "watch": "webpack --mode development --watch",
-    "server": "webpack-dev-server --open --mode development"
+    "server": "webpack-dev-server --open --mode development",
+    "server-prod": "webpack-dev-server --open --mode production"
   },
   "author": "",
   "license": "ISC",
