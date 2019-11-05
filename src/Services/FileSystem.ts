@@ -236,8 +236,12 @@ export const resolveWorkingPaths: Function = (paths: string[], identitC: IIdenti
     return Promise.resolve(paths.map(p => resolvePath(p, identitC.getIdentity(), false)));
 };
 
-const resolveExecPaths: Function = (exec: string, identity: IIdentity): string[] =>
-    [resolvePath(exec, identity), ...identity.getEnv("path", "/bin").split(";").map(p => resolveWorkingPath(exec, p))];
+const resolveExecPaths: Function = (exec: string, identity: IIdentity): string[] => {
+    return [
+        resolvePath(exec, identity),
+        ...identity.getEnv("path", "/bin").split(";").map(p => resolveWorkingPath(exec, p))
+    ];
+};
 
 
 

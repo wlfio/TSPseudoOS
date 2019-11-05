@@ -1,5 +1,6 @@
 import { IFSListEntry } from "../Services/FileSystem";
 import { PromiseFunction } from "../Struct/Types";
+import { IProcess } from "../Struct/Process";
 
 declare const OS: ILibOS;
 
@@ -11,10 +12,10 @@ export interface IStdInMsg {
 export interface ILibOS {
     FS: ILibFS;
     Std: ILibStd;
-    Display: ILibOut;
+    Display: ILibDisplay;
     Process: ILibProcess;
     Util: ILibUtil;
-    Remote: ILibRemote;
+    //Remote: ILibRemote;
 }
 
 export interface IAppMessageType {
@@ -53,10 +54,12 @@ interface ILibStdEvents {
     in(cb: (msg: IStdInMsg) => Promise<any>): void;
 }
 
-interface ILibOut {
-    print(data: string | String[] | Array<string[]>, over?: number): void;
-    printLn(data: string | String[] | Array<string[]>, over?: number): void;
-    prompt(text: string): void;
+export interface ILibDisplay {
+    printRaw(data: string | String[] | Array<string[]>, over?: number, newLine?: boolean): Promise<any>;
+    print(data: string | String[] | Array<string[]>, over?: number): Promise<any>;
+    printLn(data: string | String[] | Array<string[]>, over?: number): Promise<any>;
+    prompt(text: string): Promise<any>;
+    info(): Promise<any>;
 }
 
 export interface ILibProcess {
@@ -75,10 +78,10 @@ export interface ILibProcess {
 }
 
 interface ILibProcessEvents {
-    start(callback: PromiseFunction): void;
-    msg(callback: PromiseFunction): void;
-    end(callback: PromiseFunction): void;
-    self(callback: PromiseFunction): void;
+    start(cb: (process: IProcess) => Promise<any>): void;
+    msg(cb: (msg: any) => Promise<any>): void;
+    end(cb: (pid: number) => Promise<any>): void;
+    self(cb: (process: IProcess) => Promise<any>): void;
 }
 
 interface ILibUtil {

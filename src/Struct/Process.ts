@@ -1,52 +1,10 @@
-import sha1 from "sha1";
+import { IProcessManager } from "../Services/ProcessManager";
+import FS from "../Services/FileSystem";
+import { FunctionSignature, IDisplayItem } from "../App/libOS";
+import { OSApi } from "./Types";
 import Identity, { IIdentityContainer, IIdentity } from "./Identity";
-import { IAppMessageType, IAppMessage } from "../App/libOS";
+import OSLib from "./OSLib";
 
-const generateBlobURL: Function = (data: string, type: string): string => {
-    const blob: Blob = new Blob([data], { type: type });
-    return URL.createObjectURL(blob);
-};
-
-const blobs: { [s: string]: { [s: string]: string } } = {
-
-};
-
-const getBlobURL: Function = (data: string, type: string, cache?: boolean): string => {
-    if (cache === false) {
-        return generateBlobURL(data, type);
-    }
-    const sha: string = sha1(data);
-    if (!blobs.hasOwnProperty(type)) {
-        blobs[type] = {};
-    }
-    if (!blobs[type].hasOwnProperty(sha)) {
-        blobs[type][sha] = generateBlobURL(data, type);
-    }
-    return blobs[type][sha];
-};
-
-const getJSBlobURL: Function = (data: string, cache?: boolean) => getBlobURL(data, "text/javascript", cache);
-
-const getAppHtml: Function = (data: string[]) => {
-    if (!(data instanceof Array)) { data = [data]; }
-    let html: string = "<html><head><meta charset = \"UTF-8\">";
-    data.forEach(d => html += ["<script src=\"", d, "\"></scr", "ipt>"].join(""));
-    html += "</head><body></body></html>";
-    return getBlobURL(html, "text/html", false);
-};
-
-const getIdentity: Function = (ident: IIdentity | null, parent: any): Identity => {
-    if (!(ident instanceof Identity)) {
-        if (parent.hasOwnProperty("identity")) {
-            ident = parent.identity;
-        }
-    }
-    if (ident instanceof Identity) {
-        return ident.clone();
-    } else {
-        throw ["Process Start Failed", "Missing Identity", "None passed or on parent"];
-    }
-};
 
 export interface IProcess {
     id: number;
@@ -59,51 +17,55 @@ export interface IProcess {
 }
 
 export default class Process implements IProcess, IIdentityContainer {
+    manager: IProcessManager;
+    lib: OSLib;
+    code: string = "";
+
     id: number;
-    exec: string;
-    params: string[];
     identity: IIdentity;
-    // parent: Process | null;
-    container: HTMLIFrameElement | null;
-    bin: string[];
-    dead: boolean;
-    paramsUrl: string = "";
-    htmlUrl: string = "";
+    params: string[];
+    exec: string;
+    dead: boolean = false;
     children: { [s: number]: Process } = [];
-    static libJS: string | null = null;
+    app: any;
 
     parentInCB: Function | null = null;
     parentEndCB: Function | null = null;
     parentID: number = -1;
 
-
-    constructor(id: number, exec: string, params: string[], identity: IIdentity | null, parent: Process | null) {
-        this.id = id;
-        this.exec = exec;
-        this.params = params;
-        this.identity = getIdentity(identity, parent);
-        // this.parent = parent || null;
-        this.container = null;
-        this.bin = [];
-        this.dead = false;
-
-        if (parent instanceof Process) {
-            this.parentID = parent.id;
-            const cbs: [Function, Function] = parent.registerChild(this);
-            this.parentInCB = cbs[0];
-            this.parentEndCB = cbs[1];
+    private api: OSApi = {
+        Std: {
+            out: (data: any) => this.hasParent() ? this.intoParent(data) : this.api.Display.print({ data: data, over: 0 }),
+            in: (data: any) => this.intoChild(data.pid, data.data, data.source || null),
+        },
+        FS: {
+            list: (data: string) => FS.list(data, this),
+            mkdir: (data: string) => FS.mkdir(data, this),
+            resolve: (data: string[]) => FS.resolveWorkingPaths(data, this),
+            append: (data: { path: string, content: string }) => FS.append(data.path, data.content, this),
+            write: (data: { path: string, content: string }) => FS.write(data.path, data.content, this),
+            touch: (path: string) => FS.touch(path, this),
+            read: (path: string) => FS.read(path, this),
+            del: (path: string) => FS.del(path, this),
+            dirExists: (path: string) => FS.dirExists(path, this),
+            fileExists: (path: string) => FS.fileExists(path, this),
+            delDir: (path: string) => FS.delDir(path, this),
+        },
+        Process: {
+            end: () => this.kill(),
+            setEnv: (data: { prop: string, value: any, pid?: number }) => this.setEnv(data.prop, data.value, data.pid),
+            self: () => Promise.resolve(this.data()),
+            start: (data: any) => this.manager.startProcess(data.exec, data.params, null, this),
+            crash: (error: any) => { this.api.Std.out(error); return this.kill(); },
+            changeWorkingPath: (data: any) => this.changeWorkingPath(data),
+        },
+        Display: {
+            prompt: (text: string) => this.manager.getDisplay().setText(text),
+            print: (item: IDisplayItem) => this.manager.getDisplay().output(item.data, item.over, false),
+            printLn: (item: IDisplayItem) => this.manager.getDisplay().output(item.data, item.over, true),
+            info: () => this.manager.getDisplay().info(),
         }
-    }
-
-    registerChild(process: Process): [Function, Function] {
-        this.children[process.id] = process;
-        return [
-            (data: any) => {
-                this.stdIn(process.id, data);
-            },
-            () => { this.removeChild(process); }
-        ];
-    }
+    };
 
     getIdentity(): IIdentity {
         if (this.identity instanceof Identity) {
@@ -113,11 +75,66 @@ export default class Process implements IProcess, IIdentityContainer {
         }
     }
 
-    hasParent(): boolean {
-        return this.parentInCB !== null;
+    constructor(manager: IProcessManager, exec: string, pid: number, params: string[], identitC: IIdentity, parent?: Process) {
+        this.manager = manager;
+        //this.display = display;
+        this.exec = exec;
+        this.id = pid;
+        this.lib = new OSLib((signature: FunctionSignature, data: any) => this.call(signature, data));
+        this.identity = identitC.getIdentity();
+        this.params = params;
+        if (parent instanceof Process) {
+            this.parentID = parent.id;
+            const cbs: [Function, Function] = parent.registerChild(this);
+            this.parentInCB = cbs[0];
+            this.parentEndCB = cbs[1];
+        }
     }
 
-    intoParent(data: any): Promise<any> {
+    setEnv(prop: string, value: any, pid?: number): Promise<any> {
+        if (typeof pid === "number") {
+            if (pid === this.parentID || this.children.hasOwnProperty(pid)) {
+                return this.manager.setEnv(pid, prop, value);
+            } else {
+                return Promise.reject();
+            }
+        } else {
+            switch (prop) {
+                case "log":
+                    console.log("Process SET", value);
+                    break;
+                case "workingPath":
+                case "workingDir":
+                    this.changeWorkingPath(value);
+                    break;
+                default:
+                    this.identity.setEnv(prop, value);
+                    break;
+            }
+            this.event(["Process", "self"], this.data());
+            return Promise.resolve();
+        }
+    }
+
+    start(code: string): boolean {
+        this.code = code;
+        const wrapper: string = [
+            "((proc,osLib)=>{\n",
+            this.code,
+            ";\nreturn new Main(proc,osLib);\n})"
+        ].join("");
+
+        // tslint:disable: no-eval
+        this.app = eval(wrapper)(this.data, this.lib);
+        // tslint:enable: no-eval
+        return true;
+    }
+
+    hasParent(): boolean {
+        return this.parentID >= 0;
+    }
+
+    private intoParent(data: any): Promise<any> {
         if (this.parentInCB !== null) {
             this.parentInCB(data);
             return Promise.resolve();
@@ -125,71 +142,19 @@ export default class Process implements IProcess, IIdentityContainer {
         return Promise.reject();
     }
 
-    getChild(pid: number): Process | null {
-        return this.children[pid] || null;
-    }
-
-    identifier(): string {
-        return this.exec + "[" + this.id + "]";
-    }
-
-    intoChild(pid: number, data: any, source?: string | number): Promise<any> {
-        const child: Process | null = this.getChild(pid);
-        if (child !== null) {
-            console.log(this.identifier(), " > ", child.identifier(), data, source);
-            child.stdIn(source || this.id, data);
-            return Promise.resolve();
+    call(signature: FunctionSignature, data: any): Promise<any> {
+        if (this.api.hasOwnProperty(signature.service)) {
+            if (this.api[signature.service].hasOwnProperty(signature.func)) {
+                return this.api[signature.service][signature.func](data);
+            }
         }
-        return Promise.reject();
-    }
-
-    set(prop: string, value: any): Promise<any> {
-        switch (prop) {
-            case "workingDir":
-                this.identity.workingDir = value;
-        }
-        this.updateSelf();
-        return Promise.resolve();
-    }
-
-    updateSelf(): void {
-        this.message(["Process", "self"], this.data());
-    }
-
-    loadLibJS(code: string): Process {
-        if (Process.libJS === null) {
-            Process.libJS = getJSBlobURL(code);
-        }
-        this.bin.push(Process.libJS || "");
-        return this;
-    }
-
-    changeWorkingDir(path: string): Promise<any> {
-
-    }
-
-    loadBin(code: string): Process {
-        this.bin.push(getJSBlobURL(code));
-        return this;
-    }
-
-    spawn(container: HTMLIFrameElement): void {
-        this.paramsUrl = getJSBlobURL([
-            "window.PROCESS = " + JSON.stringify(this) + ";",
-            // "window.START_PARAMS = " + JSON.stringify(this.params) + ";"
-        ].join(""));
-        this.htmlUrl = getAppHtml([this.paramsUrl, ...this.bin]);
-        container.src = this.htmlUrl;
-        this.container = container;
-    }
-
-    isSource(source: Window): boolean {
-        if (this.container === null) { return false; }
-        return source === this.container.contentWindow;
-    }
-
-    stdIn(source: number | string, data: any): void {
-        this.message(["Std", "in"], { from: source, data });
+        return Promise.reject(
+            new Error([
+                "PM Error",
+                "Atempt to access non-existant System Call\n" + signature.service + ">" + signature.func,
+                this.exec + "[" + this.id + "]"
+            ].join(" : "))
+        );
     }
 
     data(): IProcess {
@@ -203,54 +168,48 @@ export default class Process implements IProcess, IIdentityContainer {
         };
     }
 
-    message(typea: string[], data: any, id?: string, error?: any): boolean {
-        if (this.container !== null) {
-            const window: Window | null = this.container.contentWindow;
-            if (window === null) { return false; }
-            const type: IAppMessageType = { service: typea[0], func: typea[1] };
-            const msg: IAppMessage = { type: type, data: data, id: id };
-            if (error instanceof Error) {
-                console.log("Error to process", this, error);
-                error = ["ERROR", ...error.message.split(" : ")];
-            }
-            if (typeof error !== "undefined") {
-                msg.error = error;
-            }
-            window.postMessage(msg, location.origin);
-            return true;
-        }
-        return false;
-    }
-
-    respond(data: any, id?: string, error?: any): void {
-        this.message(["response"], data, id, error);
+    registerChild(process: Process): [Function, Function] {
+        this.children[process.id] = process;
+        return [
+            (data: any) => {
+                this.stdIn(process.id, data);
+            },
+            () => { this.removeChild(process); }
+        ];
     }
 
     removeChild(process: Process): void {
-        this.message(["Process", "end"], process.id);
+        this.event(["Process", "end"], process.id);
         delete this.children[process.id];
+    }
+
+    intoChild(pid: number, source: number | string, data: any): Promise<any> {
+        if (this.children.hasOwnProperty(pid)) {
+            return this.children[pid].stdIn(source, data);
+        }
+        return Promise.reject();
+    }
+
+    stdIn(source: number | string, data: any): Promise<any> {
+        return this.event(["Std", "in"], { from: source, data });
+    }
+
+    async changeWorkingPath(path: string): Promise<any> {
+        this.identity.changeWorkingPath(path);
+    }
+
+    event(type: [string, string], data: any): Promise<any> {
+        return this.lib.fireEvent({ service: type[0], func: type[1] }, data);
     }
 
     kill(): Promise<any> {
         this.dead = true;
-        if (this.container === null) { return Promise.reject(); }
-        const parent: Node | null = this.container.parentNode;
-        if (parent === null) { return Promise.reject(); }
-        parent.removeChild(this.container);
-
+        delete this.app;
+        delete this.lib;
         if (this.parentEndCB !== null) {
             this.parentEndCB();
         }
-
-        this.bin = [];
-        if (this.htmlUrl.length > 0) {
-            URL.revokeObjectURL(this.htmlUrl);
-        }
-        if (this.paramsUrl.length > 0) {
-            URL.revokeObjectURL(this.paramsUrl);
-        }
-        this.htmlUrl = "";
-        this.paramsUrl = "";
         return Promise.resolve();
     }
 }
+

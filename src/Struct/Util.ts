@@ -1,4 +1,4 @@
-import { ILibUtil } from "./libOS";
+import { ILibUtil } from "../App/libOS";
 
 export const Util: ILibUtil = {
     loadArgs: (args, opts, map): Promise<string[]> => {
@@ -57,3 +57,5 @@ export const Util: ILibUtil = {
         return Math.round(bytes) + set[o];
     }
 };
+
+export default Util;

@@ -62,8 +62,5 @@ document.addEventListener("DOMContentLoaded", () => {
         ["Last Login: Fri, 25 Oct 2019 18: 57: 47 GMT"],
     ], 0, true);
 
-    window.addEventListener("message", (msg) => {
-        processManager.appMessage(msg);
-    });
     processManager.startProcess("bash", [], guestIdent);
 });

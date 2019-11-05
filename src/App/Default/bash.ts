@@ -23,9 +23,9 @@ export default class Main {
     constructor(process: IProcess, OS: ILibOS) {
         this.bashProcess = process;
         this.api = OS;
-        this.api.Process.selfEvent((proc: IProcess) => this.selfUpdate(proc));
-        this.api.Process.endEvent((pid: number) => this.end(pid));
-        this.api.Std.inEvent((data: IStdInMsg) => this.stdIn(data));
+        this.api.Process.event.self((proc: IProcess) => this.selfUpdate(proc));
+        this.api.Process.event.end((pid: number): Promise<any> => this.end(pid));
+        this.api.Std.event.in((data: IStdInMsg) => this.stdIn(data));
         this.start();
     }
 
@@ -35,7 +35,7 @@ export default class Main {
 
     showHistory(pos: number): void {
         this.setHistoryPosition(pos);
-        this.api.Std.prompt(this.history[this.history.length - this.historyPosition]);
+        this.api.Display.prompt(this.history[this.history.length - this.historyPosition]);
     }
 
     newHistory(input: string) {
@@ -110,7 +110,7 @@ export default class Main {
             case "c":
                 this.api.Std.out("^C");
                 this.printPrompt(true);
-                this.api.Std.prompt("");
+                this.api.Display.prompt("");
                 break;
         }
     }
@@ -149,7 +149,7 @@ export default class Main {
             this.api.Std.out(prompt);
             this.printPrompt(true);
         }
-        this.api.Std.prompt(parts.map((s: string) => s.indexOf(" ") >= 0 ? '"' + s + '"' : s).join(" "));
+        this.api.Display.prompt(parts.map((s: string) => s.indexOf(" ") >= 0 ? '"' + s + '"' : s).join(" "));
 
     }
 
@@ -171,9 +171,10 @@ export default class Main {
         }
     }
 
-    selfUpdate(data: IProcess): void {
+    selfUpdate(data: IProcess): Promise<any> {
         console.log("UPDATE SELF", data);
         this.bashProcess = data;
+        return Promise.resolve();
     }
 
     async stdIn(data: IStdInMsg) {
@@ -221,7 +222,7 @@ export default class Main {
             }
         }
     }
-    end(pid: number): void {
+    end(pid: number): Promise<any> {
         const sub: IProcess | null = this.getSubProc(pid);
         if (sub !== null) {
             delete this.subProcs[pid];
@@ -230,5 +231,6 @@ export default class Main {
                 this.printPrompt(this.activeOutputed);
             }
         }
+        return Promise.resolve();
     }
 }

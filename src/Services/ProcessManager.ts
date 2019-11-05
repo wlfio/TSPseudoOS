@@ -1,14 +1,9 @@
 import FS from "./FileSystem";
-import Process from "../Struct/Process";
+// import Process from "../Struct/Process";
 import Identity, { IIdentity } from "../Struct/Identity";
-import { IDisplayItem, AppMessage, AppMessageType } from "../App/libOS";
+// import { IDisplayItem, AppMessage, AppMessageType } from "../App/libOS";
 import { IDisplay, StubDisplay } from "./Display";
-import Process2 from "../Struct/Process2";
-
-const getLib: Function = async () => {
-    const request: Request = new Request("osLib.bundle.js");
-    return await fetch(request).then(response => response.text());
-};
+import Process from "../Struct/Process";
 
 interface IPendingApp {
     args: Array<any>;
@@ -26,12 +21,12 @@ export interface IProcessManager {
 
 export default class ProcessManager implements IProcessManager {
     display: IDisplay | null = null;
-    processes: { [s: number]: Process2 } = {};
+    processes: { [s: number]: Process } = {};
     pids: number = 0;
     pending: IPendingApp[] = [];
     libJS: string | null = null;
 
-    mainProcess: Process2 | null = null;
+    mainProcess: Process | null = null;
 
     // constructor() {
     // }
@@ -82,12 +77,6 @@ export default class ProcessManager implements IProcessManager {
     //     }
     // };
 
-    private output(data: any, over?: number, newLine?: boolean): void {
-        if (this.display !== null) {
-            this.display.output(data, over, newLine);
-        }
-    }
-
     setEnv(pid: number, name: string, value: string): Promise<any> {
         if (this.processes.hasOwnProperty(pid)) {
             this.processes[pid].setEnv(name, value);
@@ -101,7 +90,7 @@ export default class ProcessManager implements IProcessManager {
     }
 
     killProcess(processID: number): void {
-        const process: Process2 | null = this.getProcessFromID(processID);
+        const process: Process | null = this.getProcessFromID(processID);
         if (process !== null) {
             process.kill();
         }
@@ -115,9 +104,9 @@ export default class ProcessManager implements IProcessManager {
         }
     }
 
-    async startProcess(exec: string, params: string[], identity: IIdentity | null, parent?: Process2): Promise<any> {
+    async startProcess(exec: string, params: string[], identity: IIdentity | null, parent?: Process): Promise<any> {
         if (!(identity instanceof Identity)) {
-            if (parent instanceof Process2) {
+            if (parent instanceof Process) {
                 identity = parent.getIdentity();
             }
         }
@@ -133,7 +122,7 @@ export default class ProcessManager implements IProcessManager {
             this.pids++;
             const execPath: string = execData[0];
             const code: string = execData[1].trim();
-            const proc: Process2 = new Process2(this, execPath, this.pids, params, identity, parent);
+            const proc: Process = new Process(this, execPath, this.pids, params, identity, parent);
             proc.start(code);
 
             this.processes[this.pids] = proc;
@@ -148,7 +137,7 @@ export default class ProcessManager implements IProcessManager {
         }
     }
 
-    private getProcessFromID(id: number): Process2 | null {
+    private getProcessFromID(id: number): Process | null {
         return Object.values(this.processes).find(p => p.id === id) || null;
     }
 

@@ -10,7 +10,7 @@ export interface IIdentity extends IIdentityContainer {
     groups: string[];
     workingDir: string;
     priveledged: boolean;
-    getEnv(name: string, fallback?: string): string | null;
+    getEnv(name: string, fallback?: string): string;
     setEnv(name: string, value: string | string[]): void;
     changeWorkingPath(path: string): Promise<boolean>;
 }
@@ -42,11 +42,11 @@ export default class Identity implements IIdentity {
         this.env[name] = value;
     }
 
-    getEnv(name: string, fallback?: string): string | null {
+    getEnv(name: string, fallback?: string): string {
         if (this.env.hasOwnProperty(name)) {
             return this.env[name];
         }
-        return fallback || null;
+        return fallback || "";
     }
 
     getIdentity(): IIdentity {
