@@ -3,6 +3,7 @@ import Identity from "./Struct/Identity";
 import ProcessManager from "./Services/ProcessManager";
 import Display from "./Services/Display";
 import { DefaultApps } from "./App/Default/index";
+// import xTermDisplay from "./Services/xTermDisplay";
 
 const rootIdent: Identity = new Identity("root", [], "/");
 const guestIdent: Identity = new Identity("guest", [], "/home/guest");
@@ -47,12 +48,15 @@ Object.entries(DefaultApps).map((app: Array<any>) => {
 const display: Display = new Display();
 const processManager: ProcessManager = new ProcessManager();
 
+// const xTerm: xTermDisplay = new xTermDisplay();
+
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log(location.host, isRemote);
 
     display.init(processManager);
     processManager.init(display);
+    // xTerm.init(processManager);
 
     display.output([
         ["Welcome to wlf.io TSPseudoOS v0.1 LTNS(Little To No Support)"],

@@ -1,6 +1,7 @@
 import { IFSListEntry } from "../Services/FileSystem";
 import { PromiseFunction } from "../Struct/Types";
 import { IProcess } from "../Struct/Process";
+import { ILibCMD } from "../Services/Cmd";
 
 declare const OS: ILibOS;
 
@@ -15,6 +16,7 @@ export interface ILibOS {
     Display: ILibDisplay;
     Process: ILibProcess;
     Util: ILibUtil;
+    CMD: ILibCMD;
     //Remote: ILibRemote;
 }
 

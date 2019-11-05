@@ -15,6 +15,7 @@ export interface IProcessManager {
     display: IDisplay | null;
     stdIn(source: string | number, data: any): void;
     startProcess(exec: string, params: string[], identity: Identity | null, parent?: any): Promise<any>;
+    endProcess(pid: number): void;
     getDisplay(): IDisplay;
     setEnv(pid: number, name: string, value: string): Promise<any>;
 }
@@ -101,6 +102,12 @@ export default class ProcessManager implements IProcessManager {
             this.mainProcess.stdIn(source, data);
         } else {
             console.log("STDIN", data);
+        }
+    }
+
+    endProcess(pid: number) {
+        if (this.processes.hasOwnProperty(pid)) {
+            delete this.processes[pid];
         }
     }
 

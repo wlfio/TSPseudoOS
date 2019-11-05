@@ -2,6 +2,7 @@ import { ILibOS, ILibStd, ILibFS, IStdInMsg, ILibProcess, ILibDisplay, ILibUtil 
 import { FunctionSignature, PromiseHolder } from "./Types";
 import { IProcess } from "./Process";
 import Util from "./Util";
+import CMD, { ILibCMD } from "../Services/Cmd";
 
 export default class OSLib implements ILibOS {
 
@@ -41,7 +42,7 @@ export default class OSLib implements ILibOS {
         self: () => this.call("Process", "self"),
         start: (exec: string, params: string[]) => this.call("Process", "start", { exec, params }),
         crash: (error: any) => this.call("Process", "crash", error),
-        changeWorkingPath: (path: string) => this.call("Process", "changeWorkingPath", path),
+        changeWorkingPath: (path: string, pid?: number) => this.call("Process", "changeWorkingPath", { path, pid }),
         msg: (pid: number, msg: any) => this.call("Process", "msg", { pid, msg }),
         kill: (pid: number) => this.call("Process", "kill", pid),
         list: () => this.call("Process", "list"),
@@ -56,6 +57,8 @@ export default class OSLib implements ILibOS {
     };
 
     Util: ILibUtil = Util;
+
+    CMD: ILibCMD = CMD;
 
     constructor(call: (signature: FunctionSignature, data: any) => Promise<any>) {
         this._call = call;

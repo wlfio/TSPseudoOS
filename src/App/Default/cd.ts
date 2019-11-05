@@ -33,7 +33,7 @@ export default class Main {
             if (this.proc.parentID > 0) {
                 paths = await this.api.FS.resolve(paths);
                 const result = await this.api.Process.changeWorkingPath(paths[0], this.proc.parentID);
-                console.log("CHANGE DIR", result);
+                console.log("CHANGE DIR", paths, result);
             }
             //console.log(PROCESS, paths);
             this.api.Process.end();
@@ -41,4 +41,4 @@ export default class Main {
             this.error(e);
         }
     }
-}
+};

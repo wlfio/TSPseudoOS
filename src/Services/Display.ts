@@ -151,7 +151,12 @@ export default class Display implements IDisplay {
             items.push(document.createElement("br"));
         }
         this.writeToDisplay(items, over);
+        this.scrollToBottom();
         return Promise.resolve();
+    }
+
+    scrollToBottom() {
+        this.display.scrollTo(0, this.display.scrollHeight);
     }
 
     prompt(show: boolean): void {
@@ -168,7 +173,9 @@ export default class Display implements IDisplay {
     private createDisplay(): void {
         this.display.id = "output";
         this.display.tabIndex = -1;
+        this.display.classList.add("output");
         this.input.id = "input";
+        this.input.classList.add("input");
         this.input.tabIndex = 0;
         this.input.contentEditable = "true";
         this.input.spellcheck = false;
@@ -203,6 +210,7 @@ export default class Display implements IDisplay {
         sel.removeAllRanges();
         sel.addRange(range);
         this.input.focus();
+        this.scrollToBottom();
         return Promise.resolve();
         // const range = document.createRange();//Create a range (a range is a like the selection but invisible)
         // range.selectNodeContents(contentEditableElement);//Select the entire contents of the element with the range

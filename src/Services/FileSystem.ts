@@ -432,12 +432,14 @@ export const delDir: Function = (path: string, identitC: IIdentityContainer): Pr
 };
 
 const getChildren: Function = (path: string): Array<IFSListEntrySpawn> => {
-    const f: string = filePath(path) + "/";
-    const d: string = dirPath(path) + "/";
+    path = slashWrap(path);
+    let f: string = filePath(path);// + "/";
+    let d: string = dirPath(path);// + "/";
     const l: number = path.split("/").length;
+    console.log(f, d, l);
     return Object.keys(localStorage)
         .filter(p => p.startsWith(f) || p.startsWith(d))
-        .filter(p => p.split("/").length <= l + 1)
+        .filter(p => p.split("/").length <= l)
         .map(p => {
             const parts: string[] = p.split(":");
             return { file: parts[0] === "FSF", path: parts[1] };
@@ -449,7 +451,7 @@ interface IFSListEntrySpawn {
     path: string;
 }
 
-const listEntry: Function = (entry: IFSListEntrySpawn): IFSListEntry => {
+const listEntry: Function = (rootPath: string, entry: IFSListEntrySpawn): IFSListEntry => {
     const dir: boolean = !entry.file;
     const path: string = entry.path;
     const ownerData: string[] = getPathOwners(path);
@@ -457,7 +459,7 @@ const listEntry: Function = (entry: IFSListEntrySpawn): IFSListEntry => {
     return {
         full: path,
         path: getFileDir(path),
-        name: getFileName(path),
+        name: rootPath === path ? "." : getFileName(path),
         ext: !dir ? getFileExt(path) : "",
         file: !dir,
         user: ownerData[0],
@@ -472,11 +474,14 @@ export const list: Function = (path: string, identitC: IIdentityContainer): Prom
     const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
+        console.log("LIST PATH RESOLVE", path);
         dirExistsCheck(path);
+        console.log("LIST DIR CHECK", path);
         hasPermissionCheck(path, permBitRead, identity);
-        const paths: Array<IFSListEntry> = getChildren(path)
-            .map((p: IFSListEntrySpawn) => listEntry(p))
-            .sort((a: IFSListEntry, b: IFSListEntry) => a.full < b.full ? -1 : (a.full > b.full ? 1 : 0));
+        let paths: Array<IFSListEntry> = getChildren(path);
+        console.log("LIST PATHS", path, paths);
+        paths = paths.map((p: IFSListEntrySpawn) => listEntry(path, p));
+        paths = paths.sort((a: IFSListEntry, b: IFSListEntry) => a.full < b.full ? -1 : (a.full > b.full ? 1 : 0));
         return Promise.resolve(paths);
     } catch (e) {
         return Promise.reject(e);

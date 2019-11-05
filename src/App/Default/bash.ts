@@ -1,8 +1,5 @@
-import { ILibCMD } from "../../Services/Cmd";
 import { ILibOS, IStdInMsg } from "../libOS";
 import { IProcess } from "../../Struct/Process";
-
-declare var CMD: ILibCMD;
 
 export default class Main {
     bashHistoryFile: string = "~/.bash_history";
@@ -58,13 +55,13 @@ export default class Main {
         this.api.Std.out(
             (newLine ? "\n" : "")
             +
-            CMD.Colourize(this.bashProcess.identity.user + "@" + this.host, CMD.Colours.green)
+            this.api.CMD.Colourize(this.bashProcess.identity.user + "@" + this.host, this.api.CMD.Colours.green)
             +
-            CMD.Colourize(":", CMD.Colours.white)
+            this.api.CMD.Colourize(":", this.api.CMD.Colours.white)
             +
-            CMD.Colourize(this.bashProcess.identity.workingDir.replace("/home/" + this.bashProcess.identity.user, "~"), CMD.Colours.blue)
+            this.api.CMD.Colourize(this.bashProcess.identity.workingDir.replace("/home/" + this.bashProcess.identity.user, "~"), this.api.CMD.Colours.blue)
             +
-            CMD.Colourize("$ ", CMD.Colours.white)
+            this.api.CMD.Colourize("$ ", this.api.CMD.Colours.white)
         );
     }
 
@@ -105,7 +102,6 @@ export default class Main {
     }
 
     ctrlCode(type: string): void {
-        console.log("CTRL CODE", type);
         switch (type) {
             case "c":
                 this.api.Std.out("^C");
@@ -132,12 +128,10 @@ export default class Main {
             args.push(dir);
             const ls = await this.api.Process.startAndAwaitOutput("ls", args);
             const opts = ls.data;
-            console.log({ text, parts, dirs, dir, t, opts });
             const result = opts.filter((e: string) => e.startsWith(t));
             if (result.length === 1) {
                 dirs[dirs.length - 1] = result[0];
                 const d = dirs.join("/");
-                console.log(d);
                 const isDir = await this.api.FS.dirExists(d);
                 parts[parts.length - 1] = d + (isDir ? "/" : "");
             } else {
@@ -172,7 +166,6 @@ export default class Main {
     }
 
     selfUpdate(data: IProcess): Promise<any> {
-        console.log("UPDATE SELF", data);
         this.bashProcess = data;
         return Promise.resolve();
     }
@@ -184,7 +177,6 @@ export default class Main {
                     this.specialCode(data.data);
                 } else {
                     if (this.activeProcessID > 0) {
-                        console.log("PASS ON STD IN", this.bashProcess.id);
                         this.api.Std.in(this.activeProcessID, data.data, data.from);
                         return;
                     }

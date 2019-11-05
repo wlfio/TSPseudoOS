@@ -57,7 +57,7 @@ export default class Process implements IProcess, IIdentityContainer {
             self: () => Promise.resolve(this.data()),
             start: (data: any) => this.manager.startProcess(data.exec, data.params, null, this),
             crash: (error: any) => { this.api.Std.out(error); return this.kill(); },
-            changeWorkingPath: (data: any) => this.changeWorkingPath(data),
+            changeWorkingPath: (data: { path: string, pid: number }) => this.changeWorkingPath(data.path, data.pid),
         },
         Display: {
             prompt: (text: string) => this.manager.getDisplay().setText(text),
@@ -125,7 +125,7 @@ export default class Process implements IProcess, IIdentityContainer {
         ].join("");
 
         // tslint:disable: no-eval
-        this.app = eval(wrapper)(this.data, this.lib);
+        this.app = eval(wrapper)(this.data(), this.lib);
         // tslint:enable: no-eval
         return true;
     }
@@ -194,8 +194,12 @@ export default class Process implements IProcess, IIdentityContainer {
         return this.event(["Std", "in"], { from: source, data });
     }
 
-    async changeWorkingPath(path: string): Promise<any> {
-        this.identity.changeWorkingPath(path);
+    async changeWorkingPath(path: string, pid?: number): Promise<any> {
+        if (typeof pid === "number" && pid > 0) {
+            this.manager.setEnv(pid, "workingPath", path);
+        } else {
+            this.identity.changeWorkingPath(path);
+        }
     }
 
     event(type: [string, string], data: any): Promise<any> {
@@ -209,6 +213,7 @@ export default class Process implements IProcess, IIdentityContainer {
         if (this.parentEndCB !== null) {
             this.parentEndCB();
         }
+        this.manager.endProcess(this.id);
         return Promise.resolve();
     }
 }

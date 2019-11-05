@@ -1,12 +1,9 @@
 import { ILibOS } from "../libOS";
 import { IProcess } from "../../Struct/Process";
 
-declare var OS: ILibOS;
-declare var PROCESS: IProcess;
+export default class Main {
 
-const mkdir: Function = () => {
-
-    const help: string[][] = [
+    help: string[][] = [
         ["Usage: mkdir[OPTION]...DIRECTORY..."],
         ["Create the DIRECTORY(ies), if they do not already exist."],
         [""],
@@ -20,7 +17,7 @@ const mkdir: Function = () => {
         ["  ", "--version", "output version information and exit"],
     ];
 
-    const version: string = [
+    version: string = [
         "mkdir (GNU coreutils) 0.1",
         "Copyright(C) 2010 wlf.io.",
         "License MIT License < https://raw.githubusercontent.com/wlfio/TSPseudoOS/master/LICENSE >.",
@@ -30,28 +27,36 @@ const mkdir: Function = () => {
         "Written by wlf.io."
     ].join("\n");
 
-    const options: { [s: string]: any } = {
+    options: { [s: string]: any } = {
         help: false,
         version: false,
         verbose: false,
         parents: false,
     };
-    const optMap: { [s: string]: string } = {
+    optMap: { [s: string]: string } = {
         "?": "help",
         v: "verbose",
         p: "parents"
     };
 
-    const error: Function = (e: any) => {
+    count: number = 0;
+    OS: ILibOS;
+
+    constructor(process: IProcess, OS: ILibOS) {
+        this.OS = OS;
+        this.start(process.params);
+    }
+
+    error(e: any) {
         if (e instanceof Array) {
             if (e[2] === "Path is not directory") {
                 e = new Error("MKDIR ERROR : no such file or directory '" + e[3] + "' : " + e.join(" : "));
             }
         }
-        OS.Process.crash(e);
-    };
+        this.OS.Process.crash(e);
+    }
 
-    const breakPathIntoParentPaths: Function = (path: string): string[] => {
+    breakPathIntoParentPaths(path: string): string[] {
         const parts: string[] = path.split("/").filter(s => s.length > 0);
         return parts.reduce((out: string[], inp: string, i: number) => {
             if (i === 0) {
@@ -62,51 +67,50 @@ const mkdir: Function = () => {
             out.push(inp);
             return out;
         }, []);
-    };
+    }
 
-    const breakPathsIntoParentPaths: Function = (paths: string[]): Array<string[]> => {
+    breakPathsIntoParentPaths(paths: string[]): Array<string[]> {
         return paths.map((path: string) => {
-            if (options.parents) {
-                return breakPathIntoParentPaths(path);
+            if (this.options.parents) {
+                return this.breakPathIntoParentPaths(path);
             }
             return [path];
         });
-    };
+    }
 
-    let count: number = 0;
-    const make: Function = async (rawPaths: string[]): Promise<any> => {
+    async make(rawPaths: string[]): Promise<any> {
         let prefix: string = "";
         try {
-            const paths: string[] = await OS.FS.resolve(rawPaths);
+            const paths: string[] = await this.OS.FS.resolve(rawPaths);
             console.log("PATHS", paths);
-            const broken: string[][] = breakPathsIntoParentPaths(paths);
+            const broken: string[][] = this.breakPathsIntoParentPaths(paths);
             console.log("BROKEN", broken);
             for (let j: number = 0; j < broken.length; j++) {
                 const set: string[] = broken[j];
                 for (let i: number = 0; i < set.length; i++) {
                     const path: string = set[i];
-                    const done: boolean = await OS.FS.mkdir(path);
+                    const done: boolean = await this.OS.FS.mkdir(path);
                     console.log("PATH DONE", path, done);
-                    if (options.verbose && done) {
-                        OS.Std.out(prefix + "created directory '" + set[count] + "'");
+                    if (this.options.verbose && done) {
+                        this.OS.Std.out(prefix + "created directory '" + set[this.count] + "'");
                     }
-                    if (!done && (!options.parents)) {
-                        OS.Std.out(prefix + "cannot create directory '" + set[count] + "': File exists");
+                    if (!done && (!this.options.parents)) {
+                        this.OS.Std.out(prefix + "cannot create directory '" + set[this.count] + "': File exists");
                     }
                     prefix = "\n";
                 }
             }
-            OS.Process.end();
+            this.OS.Process.end();
         } catch (e) {
             console.log("ERROROR", e);
-            error(e);
+            this.error(e);
         }
-    };
+    }
 
-    const start: Function = async (args: string[]) => {
-        const params: string[] = await OS.Util.loadArgs(args, options, optMap);
-        if (params.length < 1 && !options.help && !options.version) {
-            OS.Process.crash(
+    async start(args: string[]) {
+        const params: string[] = await this.OS.Util.loadArgs(args, this.options, this.optMap);
+        if (params.length < 1 && !this.options.help && !this.options.version) {
+            this.OS.Process.crash(
                 new Error([
                     "mkdir error",
                     "missing operand\nTry 'mkdir --help' for more information"
@@ -115,16 +119,12 @@ const mkdir: Function = () => {
             );
             return;
         }
-        if (options.help) {
-            OS.Std.out(help);
-        } else if (options.version) {
-            OS.Std.out(version);
+        if (this.options.help) {
+            this.OS.Std.out(this.help);
+        } else if (this.options.version) {
+            this.OS.Std.out(this.version);
         } else {
-            make(params);
+            this.make(params);
         }
     };
-
-    start(PROCESS.params);
-};
-
-export default mkdir;
+}
