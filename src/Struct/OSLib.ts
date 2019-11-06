@@ -6,7 +6,7 @@ import CMD, { ILibCMD } from "../Services/Cmd";
 
 export default class OSLib implements ILibOS {
 
-    private _call: (signature: FunctionSignature, data: any) => Promise<any>;
+    private _call: (signature: FunctionSignature, ...data: any) => Promise<any>;
     private hooks: { [s: string]: Function } = {};
     private awaitProcs: { [s: number]: PromiseHolder } = {};
 
@@ -38,7 +38,7 @@ export default class OSLib implements ILibOS {
             self: (cb: Function) => this.hookEvent("Process", "self", cb),
         },
         end: () => this.call("Process", "end"),
-        //setSelf: (prop: string, value: any) => this.call("Process", "setSelf", { prop, value }),
+        // setSelf: (prop: string, value: any) => this.call("Process", "setSelf", { prop, value }),
         self: () => this.call("Process", "self"),
         start: (exec: string, params: string[]) => this.call("Process", "start", { exec, params }),
         crash: (error: any) => this.call("Process", "crash", error),
@@ -47,10 +47,12 @@ export default class OSLib implements ILibOS {
         kill: (pid: number) => this.call("Process", "kill", pid),
         list: () => this.call("Process", "list"),
         startAndAwaitOutput: (exec: string, params: string[]) => this.startAndAwait(exec, params),
+        log: (...data: any) => this.call("Process", "log", ...data),
     };
     Display: ILibDisplay = {
         prompt: (text: string) => this.call("Display", "prompt", text),
-        printRaw: (data: string | String[] | Array<string[]>, over: number, newLine: boolean) => this.call("Display", "print", { data: data, over: over || 0, newLine: newLine === true }),
+        printRaw: (data: string | String[] | Array<string[]>, over: number, newLine: boolean) =>
+            this.call("Display", "print", { data: data, over: over || 0, newLine: newLine === true }),
         print: (data: string | String[] | Array<string[]>, over?: number) => this.Display.printRaw(data, over, false),
         printLn: (data: string | String[] | Array<string[]>, over?: number) => this.Display.printRaw(data, over, true),
         info: () => this.call("Display", "info"),
@@ -60,12 +62,12 @@ export default class OSLib implements ILibOS {
 
     CMD: ILibCMD = CMD;
 
-    constructor(call: (signature: FunctionSignature, data: any) => Promise<any>) {
+    constructor(call: (signature: FunctionSignature, ...data: any) => Promise<any>) {
         this._call = call;
     }
 
-    private call(service: string, func: string, data?: any): Promise<any> {
-        return this._call({ service: service, func: func }, data);
+    private call(service: string, func: string, ...data: any): Promise<any> {
+        return this._call({ service: service, func: func }, ...data);
     }
 
     private hookEvent(service: string, func: string, cb: Function): void {
@@ -109,6 +111,6 @@ export default class OSLib implements ILibOS {
         if (this.hooks.hasOwnProperty(event)) {
             return this.hooks[event](data);
         }
-        return Promise.reject("MISSING")
+        return Promise.reject("MISSING");
     }
 }

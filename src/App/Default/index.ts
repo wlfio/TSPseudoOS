@@ -1,5 +1,5 @@
 import ls from "./ls";
-import bash from "./bash";
+import shell from "./shell";
 import mkdir from "./mkdir";
 import cat from "./cat";
 import touch from "./touch";
@@ -8,10 +8,11 @@ import cd from "./cd";
 import tail from "./tail";
 import head from "./head";
 import edit from "./edit";
+import help from "./help";
 
 export const DefaultApps: { [s: string]: Function } = {
     ls,
-    bash,
+    shell,
     mkdir,
     cat,
     touch,
@@ -20,4 +21,5 @@ export const DefaultApps: { [s: string]: Function } = {
     tail,
     head,
     edit,
+    help,
 };

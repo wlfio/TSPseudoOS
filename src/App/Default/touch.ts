@@ -1,50 +1,45 @@
 import { ILibOS, AppOpts, AppOptsMap } from "../libOS";
 import { IProcess } from "../../Struct/Process";
 
-const touch: Function = (process: IProcess, OS: ILibOS) => {
+export default class Main {
+    options: AppOpts = {
+        verbose: false,
+    };
+    optMap: AppOptsMap = {
+        v: "verbose",
+    };
+    OS: ILibOS;
+    constructor(process: IProcess, OS: ILibOS) {
+        this.OS = OS;
+        this.loadArgs(process.params);
+    }
+    firstOut: boolean = true;
 
-    class Touch {
-        options: AppOpts = {
-            verbose: false,
-        };
-        optMap: AppOptsMap = {
-            v: "verbose",
-        }
-        constructor(params: string[]) {
-            this.loadArgs(params);
-        }
-        firstOut: boolean = true;
-
-        async loadArgs(params: string[]) {
-            try {
-                const paths = await OS.Util.loadArgs(params, this.options, this.optMap);
-                this.run(paths);
-            } catch (e) {
-                this.error(e);
-            }
-        }
-
-        error(e: any): void {
-            OS.Process.crash(e);
-        }
-
-        async run(paths: string[]) {
-            for (let i: number = 0; i < paths.length; i++) {
-                const out = await OS.FS.touch(paths[i]);
-                this.printOutput(out);
-            }
-            OS.Process.end();
-        }
-
-        printOutput(out: any): void {
-            if (this.options.verbose) {
-                OS.Std.out((this.firstOut ? "" : "\n") + "created '" + out[0] + "'");
-                this.firstOut = false;
-            }
+    async loadArgs(params: string[]): Promise<any> {
+        try {
+            const paths: string[] = await this.OS.Util.loadArgs(params, this.options, this.optMap);
+            this.run(paths);
+        } catch (e) {
+            this.error(e);
         }
     }
 
-    new Touch(process.params);
-};
+    error(e: any): void {
+        this.OS.Process.crash(e);
+    }
 
-export default touch;
+    async run(paths: string[]): Promise<any> {
+        for (let i: number = 0; i < paths.length; i++) {
+            const out: string[] = await this.OS.FS.touch(paths[i]);
+            this.printOutput(out);
+        }
+        this.OS.Process.end();
+    }
+
+    printOutput(out: string[]): void {
+        if (this.options.verbose) {
+            this.OS.Std.out((this.firstOut ? "" : "\n") + "created '" + out[0] + "'");
+            this.firstOut = false;
+        }
+    }
+}

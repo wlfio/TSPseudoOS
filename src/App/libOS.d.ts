@@ -48,8 +48,8 @@ type FunctionSignature = { service: string, func: any };
 
 export interface ILibStd {
     event: ILibStdEvents;
-    out(data: any): void;
-    in(pid: number, data: any, source?: number | string): void;
+    out(data: any): Promise<any>;
+    in(pid: number, data: any, source?: number | string): Promise<any>;
 }
 
 interface ILibStdEvents {
@@ -77,6 +77,7 @@ export interface ILibProcess {
     self(): Promise<any>;
     startAndAwaitOutput(exec: string, params: string[]): Promise<any>;
     changeWorkingPath(path: string, pid?: number): Promise<any>;
+    log(...data: any): Promise<any>;
 }
 
 interface ILibProcessEvents {

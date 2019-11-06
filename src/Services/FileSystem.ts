@@ -437,7 +437,6 @@ const getChildren: Function = (path: string): Array<IFSListEntrySpawn> => {
     let f: string = filePath(path);// + "/";
     let d: string = dirPath(path);// + "/";
     const l: number = path.split("/").length;
-    console.log(f, d, l);
     return Object.keys(localStorage)
         .filter(p => p.startsWith(f) || p.startsWith(d))
         .filter(p => p.split("/").length <= l)
@@ -475,12 +474,9 @@ export const list: Function = (path: string, identitC: IIdentityContainer): Prom
     const identity: IIdentity = identitC.getIdentity();
     try {
         path = resolvePath(path, identity);
-        console.log("LIST PATH RESOLVE", path);
         dirExistsCheck(path);
-        console.log("LIST DIR CHECK", path);
         hasPermissionCheck(path, permBitRead, identity);
         let paths: Array<IFSListEntry> = getChildren(path);
-        console.log("LIST PATHS", path, paths);
         paths = paths.map((p: IFSListEntrySpawn) => listEntry(path, p));
         paths = paths.sort((a: IFSListEntry, b: IFSListEntry) => a.full < b.full ? -1 : (a.full > b.full ? 1 : 0));
         return Promise.resolve(paths);

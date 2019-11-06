@@ -66,5 +66,5 @@ document.addEventListener("DOMContentLoaded", () => {
         ["Last Login: Fri, 25 Oct 2019 18: 57: 47 GMT"],
     ], 0, true);
 
-    processManager.startProcess("bash", [], guestIdent);
+    processManager.startProcess("shell", [], guestIdent);
 });

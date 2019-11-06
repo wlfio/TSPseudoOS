@@ -81,7 +81,11 @@ export default class ProcessManager implements IProcessManager {
             const execPath: string = execData[0];
             const code: string = execData[1].trim();
             const proc: Process = new Process(this, execPath, this.pids, params, identity, parent);
-            proc.start(code);
+
+            new Promise((res) => {
+                proc.start(code);
+                res();
+            }).then();
 
             this.processes[this.pids] = proc;
 
