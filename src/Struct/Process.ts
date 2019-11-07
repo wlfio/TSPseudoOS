@@ -14,6 +14,7 @@ export interface IProcess {
     // parent: IProcess | null;
     dead: boolean;
     parentID: number;
+    identifier: string;
 }
 
 export default class Process implements IProcess, IIdentityContainer {
@@ -28,6 +29,8 @@ export default class Process implements IProcess, IIdentityContainer {
     dead: boolean = false;
     children: { [s: number]: Process } = [];
     app: any;
+
+    identifier: string;
 
     parentInCB: Function | null = null;
     parentEndCB: Function | null = null;
@@ -58,6 +61,7 @@ export default class Process implements IProcess, IIdentityContainer {
             start: (data: any) => this.manager.startProcess(data.exec, data.params, null, this),
             crash: (error: any) => { this.api.Std.out(error); return this.kill(); },
             changeWorkingPath: (data: { path: string, pid: number }) => this.changeWorkingPath(data.path, data.pid),
+            log: (...data: any) => this.log(...data),
         },
         Display: {
             prompt: (text: string) => this.manager.getDisplay().setText(text),
@@ -77,12 +81,12 @@ export default class Process implements IProcess, IIdentityContainer {
 
     constructor(manager: IProcessManager, exec: string, pid: number, params: string[], identitC: IIdentity, parent?: Process) {
         this.manager = manager;
-        //this.display = display;
         this.exec = exec;
         this.id = pid;
-        this.lib = new OSLib((signature: FunctionSignature, data: any) => this.call(signature, data));
+        this.lib = new OSLib((signature: FunctionSignature, ...data: any) => this.call(signature, ...data));
         this.identity = identitC.getIdentity();
         this.params = params;
+        this.identifier = this.exec + "[" + this.id + "]";
         if (parent instanceof Process) {
             this.parentID = parent.id;
             const cbs: [Function, Function] = parent.registerChild(this);
@@ -136,23 +140,23 @@ export default class Process implements IProcess, IIdentityContainer {
 
     private intoParent(data: any): Promise<any> {
         if (this.parentInCB !== null) {
-            this.parentInCB(data);
-            return Promise.resolve();
+            this.log("Into parent", data);
+            return this.parentInCB(data);
         }
         return Promise.reject();
     }
 
-    call(signature: FunctionSignature, data: any): Promise<any> {
+    call(signature: FunctionSignature, ...data: any): Promise<any> {
         if (this.api.hasOwnProperty(signature.service)) {
             if (this.api[signature.service].hasOwnProperty(signature.func)) {
-                return this.api[signature.service][signature.func](data);
+                return this.api[signature.service][signature.func](...data);
             }
         }
         return Promise.reject(
             new Error([
                 "PM Error",
                 "Atempt to access non-existant System Call\n" + signature.service + ">" + signature.func,
-                this.exec + "[" + this.id + "]"
+                this.identifier
             ].join(" : "))
         );
     }
@@ -165,22 +169,24 @@ export default class Process implements IProcess, IIdentityContainer {
             identity: this.identity,
             dead: this.dead,
             parentID: this.parentID,
+            identifier: this.identifier,
         };
     }
 
     registerChild(process: Process): [Function, Function] {
         this.children[process.id] = process;
+        const dat: IProcess = process.data();
         return [
-            (data: any) => {
-                this.stdIn(process.id, data);
-            },
-            () => { this.removeChild(process); }
+            (data: any) => this.stdIn(dat.id, data),
+            () => this.removeChild(dat),
         ];
     }
 
-    removeChild(process: Process): void {
+    removeChild(process: IProcess): Promise<any> {
         this.event(["Process", "end"], process.id);
+        this.log("Removing Child", process.identifier);
         delete this.children[process.id];
+        return Promise.resolve();
     }
 
     intoChild(pid: number, source: number | string, data: any): Promise<any> {
@@ -190,8 +196,8 @@ export default class Process implements IProcess, IIdentityContainer {
         return Promise.reject();
     }
 
-    stdIn(source: number | string, data: any): Promise<any> {
-        return this.event(["Std", "in"], { from: source, data });
+    stdIn(from: number | string, data: any): Promise<any> {
+        return this.event(["Std", "in"], { from, data });
     }
 
     async changeWorkingPath(path: string, pid?: number): Promise<any> {
@@ -214,6 +220,12 @@ export default class Process implements IProcess, IIdentityContainer {
             this.parentEndCB();
         }
         this.manager.endProcess(this.id);
+        this.log("KILLED");
+        return Promise.resolve();
+    }
+
+    log(...data: any): Promise<any> {
+        console.log(this.exec + "[" + this.id + "]", ...data);
         return Promise.resolve();
     }
 }

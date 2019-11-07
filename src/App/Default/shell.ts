@@ -35,7 +35,7 @@ export default class Main {
         this.api.Display.prompt(this.history[this.history.length - this.historyPosition]);
     }
 
-    newHistory(input: string) {
+    newHistory(input: string): void {
         if (input.length > 0 && input !== this.history[this.history.length - 1]) {
             this.history.push(input);
             this.api.FS.append(this.bashHistoryFile, input + "\n");
@@ -59,24 +59,28 @@ export default class Main {
             +
             this.api.CMD.Colourize(":", this.api.CMD.Colours.white)
             +
-            this.api.CMD.Colourize(this.bashProcess.identity.workingDir.replace("/home/" + this.bashProcess.identity.user, "~"), this.api.CMD.Colours.blue)
+            this.api.CMD.Colourize(this.getPromptPath(), this.api.CMD.Colours.blue)
             +
             this.api.CMD.Colourize("$ ", this.api.CMD.Colours.white)
         );
     }
 
+    getPromptPath(): string {
+        return this.bashProcess.identity.workingDir.replace("/home/" + this.bashProcess.identity.user, "~");
+    }
+
     splitUserInput(text: string): string[] {
-        const parts = text.match(/(".*?"|[^" \s]+)(?=\s* |\s*$)/g) || [];
+        const parts: string[] = text.match(/(".*?"|[^" \s]+)(?=\s* |\s*$)/g) || [];
         return parts.map(s => {
             s = s.trim();
-            if (s.charAt(0) === '"' && s.charAt(s.length - 1) === '"') {
+            if (s.charAt(0) === "\"" && s.charAt(s.length - 1) === "\"") {
                 s = s.slice(1, s.length - 1);
             }
             return s;
         });
     }
 
-    start() {
+    start(): void {
         this.api.FS.read(this.bashHistoryFile)
             .then((content: string) => {
                 this.history = content.split("\n")
@@ -87,7 +91,8 @@ export default class Main {
     }
 
     resolveAppIn(msg: IStdInMsg): Promise<any> {
-        const proc: IProcess | null = this.getSubProc(parseInt(msg.from));
+        this.api.Process.log("stdIn From App", msg, this.activeProcessID);
+        const proc: IProcess | null = this.getSubProc(parseInt(msg.from, 10));
         let output: any = msg.data;
         if (msg.data instanceof Array && proc !== null) {
             if (msg.data[0] === "ERROR") {
@@ -111,28 +116,28 @@ export default class Main {
         }
     }
 
-    async tabComplete(text: string) {
-        const parts = this.splitUserInput(text);
-        let prompt: any = null
+    async tabComplete(text: string): Promise<any> {
+        const parts: string[] = this.splitUserInput(text);
+        let prompt: any = null;
         if (parts.length === 1) {
-
+            console.log("TODO EXEC LISTING");
         } else {
-            const part = parts[parts.length - 1];
-            const dirs = part.split("/");
-            const dir = dirs.slice(0, dirs.length - 1).join("/");
-            const t = dirs[dirs.length - 1];
-            const args = ["--raw"];
+            const part: string = parts[parts.length - 1];
+            const dirs: string[] = part.split("/");
+            const dir: string = dirs.slice(0, dirs.length - 1).join("/");
+            const t: string = dirs[dirs.length - 1];
+            const args: string[] = ["--raw"];
             if (t.startsWith(".")) {
                 args.push("--all");
             }
             args.push(dir);
-            const ls = await this.api.Process.startAndAwaitOutput("ls", args);
-            const opts = ls.data;
-            const result = opts.filter((e: string) => e.startsWith(t));
+            const ls: any = await this.api.Process.startAndAwaitOutput("ls", args);
+            const opts: string[] = ls.data;
+            const result: string[] = opts.filter((e: string) => e.startsWith(t));
             if (result.length === 1) {
                 dirs[dirs.length - 1] = result[0];
-                const d = dirs.join("/");
-                const isDir = await this.api.FS.dirExists(d);
+                const d: string = dirs.join("/");
+                const isDir: boolean = await this.api.FS.dirExists(d);
                 parts[parts.length - 1] = d + (isDir ? "/" : "");
             } else {
                 prompt = opts;
@@ -143,8 +148,8 @@ export default class Main {
             this.api.Std.out(prompt);
             this.printPrompt(true);
         }
-        this.api.Display.prompt(parts.map((s: string) => s.indexOf(" ") >= 0 ? '"' + s + '"' : s).join(" "));
-
+        this.api.Display.prompt(parts.map((s: string) => s.indexOf(" ") >= 0 ? "\"" + s + "\"" : s).join(" "));
+        return Promise.resolve();
     }
 
     specialCode(code: string): void {
@@ -170,7 +175,7 @@ export default class Main {
         return Promise.resolve();
     }
 
-    async stdIn(data: IStdInMsg) {
+    async stdIn(data: IStdInMsg): Promise<any> {
         if (data.from === "user") {
             if (typeof data.data === "string") {
                 if (data.data.startsWith("§§§")) {
@@ -187,10 +192,11 @@ export default class Main {
                     const parts: string[] = this.splitUserInput(data.data);
                     const exec: string = parts.shift() || "";
                     try {
-                        const proc = await this.api.Process.start(exec, parts);
                         this.activeOutputed = false;
+                        const proc: any = await this.api.Process.start(exec, parts);
                         this.subProcs[proc.id] = proc;
                         this.activeProcessID = proc.id;
+                        this.api.Process.log("Proc Started", proc);
                     } catch (e) {
                         console.log("EXEC ERROR", e);
                         try {
@@ -208,11 +214,12 @@ export default class Main {
                 }
             }
         } else {
-            const resolve = await this.resolveAppIn(data);
+            const resolve: any = await this.resolveAppIn(data);
             if (typeof resolve !== "string") {
                 console.log(resolve);
             }
         }
+        return Promise.resolve();
     }
     end(pid: number): Promise<any> {
         const sub: IProcess | null = this.getSubProc(pid);
